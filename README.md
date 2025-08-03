@@ -1,7 +1,7 @@
 # 🚀 Advanced MT4 Expert Advisor Framework
 
 [![License](https://img.shields.io/badge/License-LGPL_3.0-blue)](https://licenses.nuget.org/LGPL-3.0-or-later)
-[![MQL4](https://img.shields.io/badge/mql4-100%-purple.svg)](https://docs.mql4.com/)
+[![MQL4](https://img.shields.io/badge/mql4-100%25-purple.svg)](https://docs.mql4.com/)
 [![MetaTrader](https://img.shields.io/badge/MetaTrader-4-blue.svg)](https://www.metatrader4.com/)
 
 
