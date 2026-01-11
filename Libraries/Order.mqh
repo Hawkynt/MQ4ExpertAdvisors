@@ -173,7 +173,103 @@ class Order:public Object {
     void TakeProfitPipsToClose(double value){this.TakeProfitPointsToClose(value/this.Symbol().PointToPipFactor());}
     
     double TakeProfitMoney() {return(this.TakeProfitPointsToOpen()*this.Symbol().PointCost()*this.Lots());}
-    
+
+    // convenience aliases
+    bool IsLong() { return this.IsBuy(); }
+    bool IsShort() { return this.IsSell(); }
+    bool IsInProfit() { return this.RealPipsProfit() > 0; }
+    bool IsInLoss() { return this.RealPipsProfit() < 0; }
+    bool IsLimit() { int type = this.Type(); return type == OP_BUYLIMIT || type == OP_SELLLIMIT; }
+    bool IsStop() { int type = this.Type(); return type == OP_BUYSTOP || type == OP_SELLSTOP; }
+
+    // spread
+    double Spread() { return (this.Symbol().Ask() - this.Symbol().Bid()) / this.Symbol().PipSize(); }
+
+    // breakeven price (price where profit = 0 after commission/swap)
+    double BreakevenPrice() {
+      if (!this.IsMarket())
+        return this.OpenPrice();
+      double costPips = -this.PipsCommission() - this.PipsSwap();
+      return this.OpenPrice() + costPips * this.Symbol().PipSize() * this._SignFactor();
+    }
+
+    // risk amount in account currency based on stop loss
+    double RiskAmount() {
+      if (!this.HasStopLoss())
+        return 0;
+      return MathAbs(this.StopLossMoney());
+    }
+
+    // risk:reward ratio based on SL and TP distances
+    double RiskRewardRatio() {
+      if (!this.HasStopLoss() || !this.HasTakeProfit())
+        return 0;
+      double risk = MathAbs(this.StopLossPipsToOpen());
+      if (risk == 0)
+        return 0;
+      double reward = MathAbs(this.TakeProfitPipsToOpen());
+      return reward / risk;
+    }
+
+    // distance from current price to stop loss in pips
+    double DistanceToStopLoss() {
+      if (!this.HasStopLoss())
+        return 0;
+      return MathAbs(this.StopLossPipsToClose());
+    }
+
+    // distance from current price to take profit in pips
+    double DistanceToTakeProfit() {
+      if (!this.HasTakeProfit())
+        return 0;
+      return MathAbs(this.TakeProfitPipsToClose());
+    }
+
+    // profit as percentage of account equity
+    double PercentProfit() {
+      double equity = AccountEquity();
+      if (equity == 0)
+        return 0;
+      return (this.Profit() / equity) * 100.0;
+    }
+
+    // margin required for this position
+    double MarginRequired() {
+      return MarketInfo(this.SymbolName(), MODE_MARGINREQUIRED) * this.Lots();
+    }
+
+    // day of week when order was opened (0=Sunday)
+    int OpenDayOfWeek() { return TimeDayOfWeek(this.OpenTime()); }
+
+    // close a portion of the position
+    bool PartialClose(double lotsToClose) {
+      if (!this.IsPlaced() || !this.IsMarket())
+        return false;
+      if (lotsToClose >= this.Lots())
+        return false;
+      double minLots = this.Symbol().MinLots();
+      if (lotsToClose < minLots)
+        return false;
+      double closePrice = this.IsBuy() ? this.Symbol().Bid() : this.Symbol().Ask();
+      return OrderClose(this.Ticket(), lotsToClose, closePrice, 0, this.IsBuy() ? BUY_COLOR : SELL_COLOR);
+    }
+
+    // modify stop loss with validation
+    bool ModifyStopLoss(double newStopLoss) {
+      if (!this.IsPlaced())
+        return false;
+      this.StopLoss(newStopLoss);
+      return true;
+    }
+
+    // modify take profit with validation
+    bool ModifyTakeProfit(double newTakeProfit) {
+      if (!this.IsPlaced())
+        return false;
+      this.TakeProfit(newTakeProfit);
+      return true;
+    }
+
     // methods
     
     /// <summary>

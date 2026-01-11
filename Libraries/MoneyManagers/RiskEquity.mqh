@@ -9,7 +9,10 @@ class MoneyManagers__RiskEquity:public IMoneyManager {
       this._percentage=percentage;
     }
   
-    virtual double CalculateLots(Order* order){
-      return(AccountEquity()*this._percentage/100.0/order.StopLossMoney());
+    virtual double CalculateLots(Order* order) {
+      double stopLossMoney = order.StopLossMoney();
+      if (stopLossMoney <= 0)
+        return 0;
+      return AccountEquity() * this._percentage / 100.0 / stopLossMoney;
     }
 };

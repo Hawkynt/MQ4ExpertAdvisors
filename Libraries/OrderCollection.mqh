@@ -203,14 +203,210 @@ class OrderCollection{
     bool IsAnyOrderOpenSince(datetime time,int type=-1){
       for(int i=this.Count()-1;i>=0;--i) {
         Order* order=this.Item(i);
-        
+
         if(type!=-1&&type!=order.Type())
           continue;
-                
+
         if(order.OpenTime()>=time)
           return(true);
       }
       return(false);
+    }
+
+    // Additional filter methods
+
+    void FilterByType(int orderType) {
+      for(int i=this.Count()-1;i>=0;--i)
+        if(this.Item(i).Type()!=orderType)
+          this._RemoveAt(i);
+    }
+
+    void FilterByProfitability(bool profitableOnly) {
+      for(int i=this.Count()-1;i>=0;--i) {
+        double profit = this.Item(i).Profit();
+        if(profitableOnly && profit <= 0)
+          this._RemoveAt(i);
+        else if(!profitableOnly && profit > 0)
+          this._RemoveAt(i);
+      }
+    }
+
+    void FilterByAgeMinutes(int minAge, int maxAge = -1) {
+      datetime now = TimeCurrent();
+      for(int i=this.Count()-1;i>=0;--i) {
+        int ageMinutes = (int)((now - this.Item(i).OpenTime()) / 60);
+        if(ageMinutes < minAge)
+          this._RemoveAt(i);
+        else if(maxAge >= 0 && ageMinutes > maxAge)
+          this._RemoveAt(i);
+      }
+    }
+
+    void FilterOpenedToday() {
+      datetime todayStart = StringToTime(TimeToString(TimeCurrent(), TIME_DATE));
+      for(int i=this.Count()-1;i>=0;--i)
+        if(this.Item(i).OpenTime() < todayStart)
+          this._RemoveAt(i);
+    }
+
+    void FilterByDirection(bool longOnly) {
+      for(int i=this.Count()-1;i>=0;--i) {
+        int type = this.Item(i).Type();
+        bool isLong = (type == OP_BUY || type == OP_BUYLIMIT || type == OP_BUYSTOP);
+        if(longOnly && !isLong)
+          this._RemoveAt(i);
+        else if(!longOnly && isLong)
+          this._RemoveAt(i);
+      }
+    }
+
+    // Additional aggregation methods
+
+    double GetLongExposure() {
+      double result = 0;
+      for(int i=this.Count()-1;i>=0;--i) {
+        int type = this.Item(i).Type();
+        if(type == OP_BUY || type == OP_BUYLIMIT || type == OP_BUYSTOP)
+          result += this.Item(i).Lots();
+      }
+      return result;
+    }
+
+    double GetShortExposure() {
+      double result = 0;
+      for(int i=this.Count()-1;i>=0;--i) {
+        int type = this.Item(i).Type();
+        if(type == OP_SELL || type == OP_SELLLIMIT || type == OP_SELLSTOP)
+          result += this.Item(i).Lots();
+      }
+      return result;
+    }
+
+    double GetDirectionalBias() {
+      double longExp = GetLongExposure();
+      double shortExp = GetShortExposure();
+      double total = longExp + shortExp;
+      if(total == 0)
+        return 0;
+      return (longExp - shortExp) / total;
+    }
+
+    Order* GetWorstPerformingOrder() {
+      if(this.Count() == 0)
+        return NULL;
+      Order* worst = this.Item(0);
+      double worstProfit = worst.Profit();
+      for(int i=this.Count()-1;i>=1;--i) {
+        Order* order = this.Item(i);
+        if(order.Profit() < worstProfit) {
+          worst = order;
+          worstProfit = order.Profit();
+        }
+      }
+      return worst;
+    }
+
+    Order* GetBestPerformingOrder() {
+      if(this.Count() == 0)
+        return NULL;
+      Order* best = this.Item(0);
+      double bestProfit = best.Profit();
+      for(int i=this.Count()-1;i>=1;--i) {
+        Order* order = this.Item(i);
+        if(order.Profit() > bestProfit) {
+          best = order;
+          bestProfit = order.Profit();
+        }
+      }
+      return best;
+    }
+
+    double GetAverageOpenPrice(int type = -1) {
+      double totalValue = 0;
+      double totalLots = 0;
+      for(int i=this.Count()-1;i>=0;--i) {
+        Order* order = this.Item(i);
+        if(type != -1 && order.Type() != type)
+          continue;
+        double lots = order.Lots();
+        totalValue += order.OpenPrice() * lots;
+        totalLots += lots;
+      }
+      if(totalLots == 0)
+        return 0;
+      return totalValue / totalLots;
+    }
+
+    int WinCount() {
+      int count = 0;
+      for(int i=this.Count()-1;i>=0;--i)
+        if(this.Item(i).Profit() > 0)
+          ++count;
+      return count;
+    }
+
+    int LoseCount() {
+      int count = 0;
+      for(int i=this.Count()-1;i>=0;--i)
+        if(this.Item(i).Profit() < 0)
+          ++count;
+      return count;
+    }
+
+    Order* GetOldestOrder() {
+      if(this.Count() == 0)
+        return NULL;
+      Order* oldest = this.Item(0);
+      for(int i=this.Count()-1;i>=1;--i) {
+        Order* order = this.Item(i);
+        if(order.OpenTime() < oldest.OpenTime())
+          oldest = order;
+      }
+      return oldest;
+    }
+
+    Order* GetNewestOrder() {
+      if(this.Count() == 0)
+        return NULL;
+      Order* newest = this.Item(0);
+      for(int i=this.Count()-1;i>=1;--i) {
+        Order* order = this.Item(i);
+        if(order.OpenTime() > newest.OpenTime())
+          newest = order;
+      }
+      return newest;
+    }
+
+    int CountByType(int orderType) {
+      int count = 0;
+      for(int i=this.Count()-1;i>=0;--i)
+        if(this.Item(i).Type() == orderType)
+          ++count;
+      return count;
+    }
+
+    double GetMaxProfit() {
+      if(this.Count() == 0)
+        return 0;
+      double maxProfit = this.Item(0).Profit();
+      for(int i=this.Count()-1;i>=1;--i) {
+        double profit = this.Item(i).Profit();
+        if(profit > maxProfit)
+          maxProfit = profit;
+      }
+      return maxProfit;
+    }
+
+    double GetMinProfit() {
+      if(this.Count() == 0)
+        return 0;
+      double minProfit = this.Item(0).Profit();
+      for(int i=this.Count()-1;i>=1;--i) {
+        double profit = this.Item(i).Profit();
+        if(profit < minProfit)
+          minProfit = profit;
+      }
+      return minProfit;
     }
 
 };
