@@ -1,0 +1,15 @@
+# Compiled EA files (generated from .mq4)
+*.ex4
+
+# MT4 compilation logs
+*.log
+
+# Test reports (generated)
+TestReports/
+
+# Build artifacts
+build.log
+test.log
+
+# IDE files
+*.mproj

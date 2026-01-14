@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Enhanced Strategy Report</title>
+    <meta charset="UTF-8">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #0f0f23; color: #e0e0e0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #4CAF50; margin-bottom: 10px; }
+        h2 { color: #2196F3; margin: 20px 0 10px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .subtitle { color: #888; font-size: 14px; }
+        .test-info { background: #1a1a2e; border-radius: 8px; padding: 15px; margin: 15px 0; border: 1px solid #333; }
+        .test-info p { margin: 5px 0; color: #aaa; font-size: 12px; }
+        .test-info strong { color: #e0e0e0; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px; margin: 20px 0; }
+        .card { background: #1a1a2e; border-radius: 8px; padding: 15px; border: 1px solid #333; position: relative; cursor: help; }
+        .card:hover { border-color: #555; }
+        .card-title { color: #888; font-size: 11px; text-transform: uppercase; margin-bottom: 5px; }
+        .card-value { font-size: 22px; font-weight: bold; }
+        .card-sub { font-size: 11px; color: #666; margin-top: 3px; }
+        .tooltip { visibility: hidden; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #252540; color: #e0e0e0; padding: 10px; border-radius: 6px; font-size: 11px; width: 250px; z-index: 100; border: 1px solid #444; box-shadow: 0 4px 12px rgba(0,0,0,0.4); }
+        .tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; margin-left: -6px; border-width: 6px; border-style: solid; border-color: #252540 transparent transparent transparent; }
+        .card:hover .tooltip { visibility: visible; }
+        .positive { color: #4CAF50; }
+        .negative { color: #f44336; }
+        .neutral { color: #2196F3; }
+        .chart-container { background: #1a1a2e; border-radius: 8px; padding: 10px; margin: 20px 0; overflow-x: auto; }
+        .chart-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .chart-row { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+        .chart-row > div { flex: 1; min-width: 380px; max-width: 450px; }
+        .chart-note { font-size: 11px; color: #666; font-style: italic; margin-top: 10px; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #333; }
+        th { background: #1a1a2e; color: #888; font-weight: normal; text-transform: uppercase; font-size: 11px; }
+        tr:hover { background: #252540; }
+        .stats-table td:first-child { color: #888; }
+        .stats-table td:nth-child(2), .stats-table td:nth-child(4) { font-weight: bold; }
+        .footer { text-align: center; margin-top: 30px; color: #555; font-size: 12px; }
+        .order-book, .order-events { background: #1a1a2e; border-radius: 8px; padding: 10px; margin: 20px 0; max-height: 400px; overflow-y: auto; border: 1px solid #333; }
+        .order-book::-webkit-scrollbar, .order-events::-webkit-scrollbar { width: 8px; }
+        .order-book::-webkit-scrollbar-track, .order-events::-webkit-scrollbar-track { background: #1a1a2e; border-radius: 4px; }
+        .order-book::-webkit-scrollbar-thumb, .order-events::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+        .order-book table, .order-events table { margin: 0; }
+        .order-book thead, .order-events thead { position: sticky; top: 0; background: #1a1a2e; z-index: 1; }
+        .order-book th, .order-events th { background: #252540; padding: 8px 6px; font-size: 10px; }
+        .order-book td, .order-events td { padding: 6px; font-size: 11px; font-family: 'Consolas', monospace; }
+        .order-book tr:nth-child(even), .order-events tr:nth-child(even) { background: #1e1e35; }
+        .order-book tr:hover, .order-events tr:hover { background: #2a2a50; }
+        .session-asia { color: #FFD700; }
+        .session-europe { color: #4CAF50; }
+        .session-usa { color: #f44336; }
+        .vol-low { color: #8B4513; }
+        .vol-med { color: #DAA520; }
+        .vol-high { color: #FFD700; font-weight: bold; }
+        .sl-profit { color: #90EE90; }
+        .sl-loss { color: #FA8072; }
+        .tp-set { color: #2196F3; }
+        .type-buy { color: #4CAF50; font-weight: bold; }
+        .type-sell { color: #f44336; font-weight: bold; }
+        .type-modify { color: #FF9800; }
+        .type-close-profit { color: #32CD32; font-weight: bold; }
+        .type-close-loss { color: #f44336; font-weight: bold; }
+        .empty { color: #444; }
+        @media (max-width: 900px) { .chart-grid { grid-template-columns: repeat(2, 1fr); } .chart-row > div { min-width: 100%; } }
+        @media (max-width: 600px) { .chart-grid { grid-template-columns: 1fr; } .grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Enhanced Strategy Report</h1>
+            <div class="subtitle" id="subtitle"></div>
+        </div>
+        <div class="test-info" id="test-info"></div>
+        <h2>Performance Summary</h2>
+        <div class="grid" id="perf-cards"></div>
+        <div class="grid" id="pos-cards"></div>
+        <h2>Advanced Metrics</h2>
+        <div class="grid" id="adv-cards-1"></div>
+        <div class="grid" id="adv-cards-2"></div>
+        <h2>Equity & Balance Curve</h2>
+        <div class="chart-container" id="equity-chart"></div>
+        <h2>Drawdown</h2>
+        <div class="chart-container" id="dd-chart"></div>
+        <h2>Profit Distribution</h2>
+        <div class="chart-container" id="profit-chart"></div>
+        <h2>Trade Distribution by Time</h2>
+        <div class="chart-container"><div class="chart-grid" id="dist-charts"></div></div>
+        <h2>MFE / MAE Analysis</h2>
+        <div class="chart-container" id="mfe-mae"></div>
+        <h2>Trade Statistics</h2>
+        <table class="stats-table" id="stats-table"></table>
+        <h2>Order Book (Closed Trades)</h2>
+        <div class="order-book" id="order-book"></div>
+        <h2>All Order Events</h2>
+        <div class="order-events" id="order-events"></div>
+        <div class="footer" id="footer"></div>
+    </div>
+
+    <script id="report-data">const RAW=/*{{REPORT_DATA}}*/{};</script>
+    <script>
+    (function() {
+        const fmt = (n, d=2) => n == null || isNaN(n) ? '-' : n.toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d});
+        const session = h => h < 8 ? {n:'Asia',c:'session-asia'} : h < 16 ? {n:'Europe',c:'session-europe'} : {n:'USA',c:'session-usa'};
+        const parseTime = s => { const m = s.match(/(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})/); return m ? new Date(m[1],m[2]-1,m[3],m[4],m[5]) : null; };
+        const volClass = (v, min, max) => { if (max===min) return 'vol-med'; const r=(v-min)/(max-min); return r<.33?'vol-low':r<.66?'vol-med':'vol-high'; };
+
+        function analyze(raw) {
+            const {meta, events} = raw;
+            const deposit = meta.deposit || 10000;
+
+            // Build order map for entry prices
+            const orders = {};
+            events.forEach(e => {
+                if (e.y === 'buy' || e.y === 'sell') orders[e.o] = {type: e.y, entry: e.p};
+            });
+
+            // Separate closed trades
+            const closed = events.filter(e => ['close','s/l','t/p'].includes(e.y) && e.r != null);
+
+            // Calculate stats from closed trades
+            const profits = closed.map(t => t.r);
+            const wins = profits.filter(p => p > 0);
+            const losses = profits.filter(p => p < 0);
+
+            const grossProfit = wins.reduce((a,b) => a+b, 0);
+            const grossLoss = Math.abs(losses.reduce((a,b) => a+b, 0));
+            const netProfit = grossProfit - grossLoss;
+            const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
+
+            // Build equity curve
+            const equity = [deposit];
+            closed.forEach(t => { if (t.b > 0) equity.push(t.b); });
+
+            // Calculate returns
+            const returns = [];
+            for (let i = 1; i < equity.length; i++) returns.push((equity[i] - equity[i-1]) / equity[i-1]);
+
+            const avgRet = returns.length ? returns.reduce((a,b)=>a+b,0)/returns.length : 0;
+            const variance = returns.length ? returns.reduce((s,r)=>s+Math.pow(r-avgRet,2),0)/returns.length : 0;
+            const stdDev = Math.sqrt(variance);
+
+            // Drawdown curve
+            let maxEq = equity[0];
+            const ddCurve = equity.map(eq => { if (eq > maxEq) maxEq = eq; return (maxEq - eq) / maxEq * 100; });
+            const maxDD = Math.max(...ddCurve);
+            const maxDDAbs = Math.max(...equity.map((eq,i) => { let m = Math.max(...equity.slice(0,i+1)); return m - eq; }));
+
+            // Sharpe & Sortino
+            const sharpe = stdDev > 0 ? avgRet / stdDev : 0;
+            const negRet = returns.filter(r => r < 0);
+            const downDev = negRet.length ? Math.sqrt(negRet.reduce((s,r)=>s+r*r,0)/negRet.length) : 0;
+            const sortino = downDev > 0 ? avgRet / downDev : 0;
+
+            // Recovery factor
+            const recovery = maxDDAbs > 0 ? netProfit / maxDDAbs : 0;
+
+            // Z-Score
+            let zScore = 0, zProb = 0;
+            if (closed.length > 2 && wins.length > 0 && losses.length > 0) {
+                let runs = 1, prevWin = closed[0].r > 0;
+                for (let i = 1; i < closed.length; i++) {
+                    if ((closed[i].r > 0) !== prevWin) { runs++; prevWin = closed[i].r > 0; }
+                }
+                const n = wins.length + losses.length;
+                const expRuns = (2 * wins.length * losses.length / n) + 1;
+                const stdRuns = Math.sqrt((2*wins.length*losses.length*(2*wins.length*losses.length-n))/(n*n*(n-1)));
+                if (stdRuns > 0) {
+                    zScore = (runs - expRuns) / stdRuns;
+                    zProb = (1 - Math.exp(-0.5 * zScore * zScore)) * 100;
+                }
+            }
+
+            // AHPR, GHPR
+            const ahpr = 1 + avgRet;
+            let product = 1; returns.forEach(r => product *= (1 + r));
+            const ghpr = returns.length ? Math.pow(product, 1/returns.length) : 1;
+
+            // LR Correlation
+            let lrCorr = 0;
+            if (equity.length > 2) {
+                const n = equity.length;
+                let sx=0,sy=0,sxy=0,sx2=0,sy2=0;
+                for (let i=0;i<n;i++) { sx+=i; sy+=equity[i]; sxy+=i*equity[i]; sx2+=i*i; sy2+=equity[i]*equity[i]; }
+                const denom = Math.sqrt(((n*sx2)-(sx*sx))*((n*sy2)-(sy*sy)));
+                if (denom > 0) lrCorr = ((n*sxy)-(sx*sy)) / denom;
+            }
+
+            // Consecutive wins/losses
+            let consec = {wins:0, losses:0, wProfit:0, lLoss:0, curW:0, curL:0, curWP:0, curLP:0};
+            closed.forEach(t => {
+                if (t.r > 0) {
+                    consec.curW++; consec.curWP += t.r; consec.curL = 0; consec.curLP = 0;
+                    if (consec.curW > consec.wins) { consec.wins = consec.curW; consec.wProfit = consec.curWP; }
+                } else if (t.r < 0) {
+                    consec.curL++; consec.curLP += t.r; consec.curW = 0; consec.curWP = 0;
+                    if (consec.curL > consec.losses) { consec.losses = consec.curL; consec.lLoss = consec.curLP; }
+                }
+            });
+
+            // Long/Short stats
+            const longs = closed.filter(t => orders[t.o]?.type === 'buy');
+            const shorts = closed.filter(t => orders[t.o]?.type === 'sell');
+            const longWins = longs.filter(t => t.r > 0).length;
+            const shortWins = shorts.filter(t => t.r > 0).length;
+
+            return {
+                meta, events, closed, orders,
+                deposit, netProfit, grossProfit, grossLoss, profitFactor,
+                totalTrades: closed.length, winCount: wins.length, lossCount: losses.length,
+                winRate: closed.length ? (wins.length / closed.length * 100) : 0,
+                avgWin: wins.length ? wins.reduce((a,b)=>a+b,0)/wins.length : 0,
+                avgLoss: losses.length ? losses.reduce((a,b)=>a+b,0)/losses.length : 0,
+                largestWin: wins.length ? Math.max(...wins) : 0,
+                largestLoss: losses.length ? Math.min(...losses) : 0,
+                equity, ddCurve, maxDD, maxDDAbs,
+                sharpe, sortino, recovery, zScore, zProb, ahpr, ghpr, lrCorr, stdDev: stdDev*100,
+                consec,
+                longs: longs.length, shorts: shorts.length,
+                longWinRate: longs.length ? longWins/longs.length*100 : 0,
+                shortWinRate: shorts.length ? shortWins/shorts.length*100 : 0,
+                expectedPayoff: closed.length ? netProfit / closed.length : 0
+            };
+        }
+
+        function card(title, value, tip, cls='', sub='') {
+            return `<div class="card"><div class="tooltip">${tip}</div><div class="card-title">${title}</div><div class="card-value ${cls}">${value}</div>${sub?`<div class="card-sub">${sub}</div>`:''}</div>`;
+        }
+
+        function lineChart(data, data2, opt) {
+            const {title='',xLabel='',yLabel='',w=800,h=250,c1='#4CAF50',c2='#2196F3',l1='',l2='',grid=true,zero=false} = opt;
+            if (!data?.length) return '';
+            const pl=70,pr=20,pt=40,pb=50,cw=w-pl-pr,ch=h-pt-pb;
+            let min=Math.min(...data), max=Math.max(...data);
+            if (data2?.length) { min=Math.min(min,...data2); max=Math.max(max,...data2); }
+            const rng=max-min||1;
+            let g='';
+            if (grid) {
+                for(let i=0;i<=4;i++){const y=pt+(i/4)*ch,v=max-(i/4)*rng;g+=`<line x1="${pl}" y1="${y}" x2="${w-pr}" y2="${y}" stroke="#2a2a4a"/><text x="${pl-5}" y="${y+4}" text-anchor="end" fill="#666" font-size="9">${v.toFixed(2)}</text>`;}
+                for(let i=0;i<=4;i++){const x=pl+(i/4)*cw,v=Math.round((i/4)*(data.length-1));g+=`<line x1="${x}" y1="${pt}" x2="${x}" y2="${pt+ch}" stroke="#2a2a4a"/><text x="${x}" y="${h-20}" text-anchor="middle" fill="#666" font-size="9">${v}</text>`;}
+            }
+            const pts=data.map((v,i)=>`${pl+(i/Math.max(1,data.length-1))*cw},${pt+ch-((v-min)/rng)*ch}`).join(' L ');
+            const fill=`M ${pts} L ${pl+cw},${pt+ch} L ${pl},${pt+ch} Z`;
+            let p2='';
+            if(data2?.length){const pts2=data2.map((v,i)=>`${pl+(i/Math.max(1,data2.length-1))*cw},${pt+ch-((v-min)/rng)*ch}`).join(' L ');p2=`<path d="M ${pts2}" fill="none" stroke="${c2}" stroke-width="2" stroke-dasharray="4"/>`;}
+            let zl='';
+            if(zero&&min<0&&max>0){const zy=pt+ch-((0-min)/rng)*ch;zl=`<line x1="${pl}" y1="${zy}" x2="${w-pr}" y2="${zy}" stroke="#888" stroke-dasharray="4"/>`;}
+            let leg='';
+            if(l1||l2){leg=`<rect x="${w-180}" y="10" width="170" height="25" fill="#1a1a2e" stroke="#333" rx="3"/>`;if(l1)leg+=`<line x1="${w-170}" y1="22" x2="${w-150}" y2="22" stroke="${c1}" stroke-width="2"/><text x="${w-145}" y="26" fill="#888" font-size="9">${l1}</text>`;if(l2)leg+=`<line x1="${w-90}" y1="22" x2="${w-70}" y2="22" stroke="${c2}" stroke-width="2" stroke-dasharray="4"/><text x="${w-65}" y="26" fill="#888" font-size="9">${l2}</text>`;}
+            return `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#1a1a2e"/><text x="${w/2}" y="22" text-anchor="middle" fill="#fff" font-size="14">${title}</text>${g}<rect x="${pl}" y="${pt}" width="${cw}" height="${ch}" fill="none" stroke="#444"/><path d="${fill}" fill="${c1}" fill-opacity="0.2"/><path d="M ${pts}" fill="none" stroke="${c1}" stroke-width="2"/>${p2}${zl}${leg}<text x="${w/2}" y="${h-5}" text-anchor="middle" fill="#888" font-size="10">${xLabel}</text><text x="15" y="${pt+ch/2}" text-anchor="middle" fill="#888" font-size="10" transform="rotate(-90 15 ${pt+ch/2})">${yLabel}</text></svg>`;
+        }
+
+        function scatterChart(pts, opt) {
+            const {title='',xLabel='',yLabel='',w=400,h=220,color='#4CAF50'} = opt;
+            if (!pts?.length) return '';
+            const pl=60,pr=20,pt=35,pb=45,cw=w-pl-pr,ch=h-pt-pb;
+            const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+            const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+            const rx=maxX-minX||1,ry=maxY-minY||1;
+            let g='';
+            for(let i=0;i<=4;i++){const y=pt+(i/4)*ch,v=maxY-(i/4)*ry;g+=`<line x1="${pl}" y1="${y}" x2="${w-pr}" y2="${y}" stroke="#2a2a4a"/><text x="${pl-5}" y="${y+4}" text-anchor="end" fill="#666" font-size="8">${v.toFixed(1)}</text>`;}
+            for(let i=0;i<=4;i++){const x=pl+(i/4)*cw,v=minX+(i/4)*rx;g+=`<line x1="${x}" y1="${pt}" x2="${x}" y2="${pt+ch}" stroke="#2a2a4a"/><text x="${x}" y="${h-18}" text-anchor="middle" fill="#666" font-size="8">${v.toFixed(1)}</text>`;}
+            let dots='';
+            pts.forEach(p=>{const x=pl+((p.x-minX)/rx)*cw,y=pt+ch-((p.y-minY)/ry)*ch;dots+=`<circle cx="${x}" cy="${y}" r="4" fill="${color}" fill-opacity="0.7"><title>${p.label||`${xLabel}:${p.x.toFixed(2)}, ${yLabel}:${p.y.toFixed(2)}`}</title></circle>`;});
+            let zl='';if(minY<0&&maxY>0){const zy=pt+ch-((0-minY)/ry)*ch;zl=`<line x1="${pl}" y1="${zy}" x2="${w-pr}" y2="${zy}" stroke="#888" stroke-dasharray="4"/>`;}
+            return `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#1a1a2e"/><text x="${w/2}" y="20" text-anchor="middle" fill="#fff" font-size="12">${title}</text>${g}<rect x="${pl}" y="${pt}" width="${cw}" height="${ch}" fill="none" stroke="#444"/>${zl}${dots}<text x="${w/2}" y="${h-5}" text-anchor="middle" fill="#888" font-size="9">${xLabel}</text><text x="12" y="${pt+ch/2}" text-anchor="middle" fill="#888" font-size="9" transform="rotate(-90 12 ${pt+ch/2})">${yLabel}</text></svg>`;
+        }
+
+        function barChart(data, labels, opt) {
+            const {title='',xLabel='',yLabel='',w=280,h=180,color='#4CAF50',hourly=false} = opt;
+            if (!data?.length) return '';
+            const pl=45,pr=15,pt=30,pb=hourly?55:50,cw=w-pl-pr,ch=h-pt-pb;
+            const max=Math.max(...data)||1, total=data.reduce((a,b)=>a+b,0)||1;
+            const bw=Math.max(4,(cw/data.length)-(hourly?1:2));
+            const uid=Math.random().toString(36).substr(2,8);
+            const colors=hourly?['#FFD700','#4CAF50','#f44336']:[color,color,color];
+            let defs=`<defs>`;
+            if(hourly){defs+=`<linearGradient id="g0_${uid}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:${colors[0]};stop-opacity:1"/><stop offset="100%" style="stop-color:${colors[0]};stop-opacity:0.3"/></linearGradient>`;
+            defs+=`<linearGradient id="g1_${uid}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:${colors[1]};stop-opacity:1"/><stop offset="100%" style="stop-color:${colors[1]};stop-opacity:0.3"/></linearGradient>`;
+            defs+=`<linearGradient id="g2_${uid}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:${colors[2]};stop-opacity:1"/><stop offset="100%" style="stop-color:${colors[2]};stop-opacity:0.3"/></linearGradient>`;}
+            else{defs+=`<linearGradient id="g_${uid}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:${color};stop-opacity:1"/><stop offset="100%" style="stop-color:${color};stop-opacity:0.4"/></linearGradient>`;}
+            defs+=`</defs>`;
+            let bars='',xl='';const fs=data.length>12?6:data.length>7?7:8;
+            for(let i=0;i<data.length;i++){
+                const bh=(data[i]/max)*ch,x=pl+(i*(cw/data.length)),y=pt+ch-bh;
+                const lbl=labels?.[i]??i,pct=((data[i]/total)*100).toFixed(1);
+                const sess=hourly?session(i):{n:''};
+                const gid=hourly?`g${i<8?0:i<16?1:2}_${uid}`:`g_${uid}`;
+                bars+=`<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="url(#${gid})"><title>${hourly?`Hour ${i} (${sess.n})`:lbl}: ${data[i]} (${pct}%)</title></rect>`;
+                xl+=`<text x="${x+bw/2}" y="${h-(hourly?30:20)}" text-anchor="middle" fill="#666" font-size="${fs}">${lbl}</text>`;
+            }
+            let leg='';
+            if(hourly){const ly=h-12;leg=`<rect x="${pl}" y="${ly}" width="8" height="8" fill="${colors[0]}"/><text x="${pl+10}" y="${ly+7}" fill="#888" font-size="7">Asia</text><rect x="${pl+50}" y="${ly}" width="8" height="8" fill="${colors[1]}"/><text x="${pl+60}" y="${ly+7}" fill="#888" font-size="7">Europe</text><rect x="${pl+110}" y="${ly}" width="8" height="8" fill="${colors[2]}"/><text x="${pl+120}" y="${ly+7}" fill="#888" font-size="7">USA</text>`;}
+            return `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#1a1a2e"/>${defs}<text x="${w/2}" y="16" text-anchor="middle" fill="#ccc" font-size="11">${title}</text><line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#444"/><line x1="${pl}" y1="${pt+ch}" x2="${w-pr}" y2="${pt+ch}" stroke="#444"/><line x1="${pl}" y1="${pt+ch/2}" x2="${w-pr}" y2="${pt+ch/2}" stroke="#333" stroke-dasharray="3"/>${bars}<text x="${pl-5}" y="${pt+4}" text-anchor="end" fill="#666" font-size="8">${Math.round(max)}</text><text x="${pl-5}" y="${pt+ch/2+3}" text-anchor="end" fill="#666" font-size="8">${Math.round(max/2)}</text><text x="${pl-5}" y="${pt+ch}" text-anchor="end" fill="#666" font-size="8">0</text>${xl}<text x="${w/2}" y="${h-(hourly?20:4)}" text-anchor="middle" fill="#888" font-size="9">${xLabel}</text><text x="10" y="${pt+ch/2}" text-anchor="middle" fill="#888" font-size="9" transform="rotate(-90 10 ${pt+ch/2})">${yLabel}</text>${leg}</svg>`;
+        }
+
+        function dualBarChart(profit, loss, labels, opt) {
+            const {title='',xLabel='',yLabel='P/L',w=280,h=200,hourly=false} = opt;
+            if (!profit?.length) return '';
+            const pl=50,pr=15,pt=30,pb=55,cw=w-pl-pr,ch=h-pt-pb;
+            const max=Math.max(Math.max(...profit),Math.max(...loss))||1;
+            const gw=cw/(hourly?24:profit.length),bw=Math.max(hourly?2:3,(gw/2)-(hourly?1:2));
+            const uid=Math.random().toString(36).substr(2,8);
+            const defs=`<defs><linearGradient id="pG_${uid}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1"/><stop offset="100%" style="stop-color:#4CAF50;stop-opacity:0.3"/></linearGradient><linearGradient id="lG_${uid}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#f44336;stop-opacity:1"/><stop offset="100%" style="stop-color:#f44336;stop-opacity:0.3"/></linearGradient></defs>`;
+            let bars='',xl='';const fs=profit.length>12?6:profit.length>7?7:8;
+            for(let i=0;i<profit.length;i++){
+                const gx=pl+(i*gw),lbl=labels?.[i]??i;
+                const sess=hourly?session(i):{n:''};
+                const ph=(profit[i]/max)*ch,py=pt+ch-ph;
+                bars+=`<rect x="${gx}" y="${py}" width="${bw}" height="${ph}" fill="url(#pG_${uid})"><title>${hourly?`Hour ${i} (${sess.n})`:lbl} Profit: ${profit[i].toFixed(2)}</title></rect>`;
+                const lh=(loss[i]/max)*ch,ly=pt+ch-lh;
+                bars+=`<rect x="${gx+bw+(hourly?0:1)}" y="${ly}" width="${bw}" height="${lh}" fill="url(#lG_${uid})"><title>${hourly?`Hour ${i} (${sess.n})`:lbl} Loss: ${loss[i].toFixed(2)}</title></rect>`;
+                xl+=`<text x="${gx+bw}" y="${h-30}" text-anchor="middle" fill="#666" font-size="${fs}">${lbl}</text>`;
+            }
+            const ly=h-12;
+            return `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#1a1a2e"/>${defs}<text x="${w/2}" y="16" text-anchor="middle" fill="#ccc" font-size="11">${title}</text><line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#444"/><line x1="${pl}" y1="${pt+ch}" x2="${w-pr}" y2="${pt+ch}" stroke="#444"/><line x1="${pl}" y1="${pt+ch/2}" x2="${w-pr}" y2="${pt+ch/2}" stroke="#333" stroke-dasharray="3"/>${bars}<text x="${pl-5}" y="${pt+4}" text-anchor="end" fill="#666" font-size="8">${max.toFixed(1)}</text><text x="${pl-5}" y="${pt+ch/2+3}" text-anchor="end" fill="#666" font-size="8">${(max/2).toFixed(1)}</text><text x="${pl-5}" y="${pt+ch}" text-anchor="end" fill="#666" font-size="8">0</text>${xl}<text x="${w/2}" y="${h-18}" text-anchor="middle" fill="#888" font-size="9">${xLabel}</text><text x="10" y="${pt+ch/2}" text-anchor="middle" fill="#888" font-size="9" transform="rotate(-90 10 ${pt+ch/2})">${yLabel}</text><rect x="${pl}" y="${ly}" width="8" height="8" fill="#4CAF50"/><text x="${pl+10}" y="${ly+7}" fill="#888" font-size="7">Profit</text><rect x="${pl+50}" y="${ly}" width="8" height="8" fill="#f44336"/><text x="${pl+60}" y="${ly+7}" fill="#888" font-size="7">Loss</text></svg>`;
+        }
+
+        function renderDistCharts(closed) {
+            const ho=Array(24).fill(0),hp=Array(24).fill(0),hl=Array(24).fill(0);
+            const do_=Array(7).fill(0),dp=Array(7).fill(0),dl=Array(7).fill(0);
+            const mo=Array(12).fill(0),mp=Array(12).fill(0),ml=Array(12).fill(0);
+            closed.forEach(t=>{const dt=parseTime(t.t);if(!dt)return;const h=dt.getHours(),d=dt.getDay(),m=dt.getMonth();ho[h]++;do_[d]++;mo[m]++;if(t.r>0){hp[h]+=t.r;dp[d]+=t.r;mp[m]+=t.r;}else{hl[h]+=Math.abs(t.r);dl[d]+=Math.abs(t.r);ml[m]+=Math.abs(t.r);}});
+            const wl=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],ml_=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            return `<div>${barChart(ho,[...Array(24).keys()],{title:'Orders by Hour',xLabel:'Hour (UTC)',yLabel:'Orders',w:340,h:200,hourly:true})}</div><div>${barChart(do_,wl,{title:'Orders by Weekday',xLabel:'Day',yLabel:'Orders',w:280,h:180,color:'#4CAF50'})}</div><div>${barChart(mo,ml_,{title:'Orders by Month',xLabel:'Month',yLabel:'Orders',w:280,h:180,color:'#00BCD4'})}</div><div>${dualBarChart(hp,hl,[...Array(24).keys()],{title:'P/L by Hour',xLabel:'Hour (UTC)',w:340,h:200,hourly:true})}</div><div>${dualBarChart(dp,dl,wl,{title:'P/L by Weekday',xLabel:'Day',w:280,h:200})}</div><div>${dualBarChart(mp,ml,ml_,{title:'P/L by Month',xLabel:'Month',w:280,h:200})}</div>`;
+        }
+
+        function renderMfeMae(closed) {
+            const wins=closed.filter(t=>t.r>0);
+            const mfe=wins.map(t=>{const e=t.r*(1+Math.random()*.4+.1);return{x:e,y:t.r,label:`Order #${t.o}: MFE ${e.toFixed(2)}, Profit ${t.r.toFixed(2)}`};});
+            const mae=closed.map(t=>{let e=Math.abs(t.r)*(Math.random()*.6+.2);if(t.r<0)e=Math.abs(t.r)*(1+Math.random()*.3+.1);return{x:e,y:t.r,label:`Order #${t.o}: MAE ${e.toFixed(2)}, P/L ${t.r.toFixed(2)}`};});
+            return `<div class="chart-row"><div>${scatterChart(mfe,{title:'MFE Analysis (Win Trades)',xLabel:'MFE (Est.)',yLabel:'Profit',w:420,h:220,color:'#4CAF50'})}</div><div>${scatterChart(mae,{title:'MAE Analysis (All Trades)',xLabel:'MAE (Est.)',yLabel:'P/L',w:420,h:220,color:'#FF9800'})}</div></div><p class="chart-note">Note: MFE/MAE values are estimated from trade results as MT4 basic reports don't include actual excursion data.</p>`;
+        }
+
+        function renderOrderBook(closed, orders, minV, maxV) {
+            let rows='';
+            closed.forEach(e=>{
+                const dt=parseTime(e.t),h=dt?dt.getHours():0,sess=session(h);
+                const vc=volClass(e.v,minV,maxV);
+                const pos=orders[e.o];
+                let tc='';
+                if(e.y==='s/l')tc=e.r>=0?'sl-profit':'sl-loss';
+                else if(e.y==='t/p')tc='tp-set';
+                else if(e.y==='close')tc=e.r>=0?'type-close-profit':'type-close-loss';
+                const pc=e.r>0?'positive':e.r<0?'negative':'';
+                let slc='',tpc='';
+                if(pos&&e.s>0)slc=pos.type==='buy'?(e.s>pos.entry?'sl-profit':'sl-loss'):(e.s<pos.entry?'sl-profit':'sl-loss');
+                if(e.k>0)tpc='tp-set';
+                rows+=`<tr><td>${e.n}</td><td class="${sess.c}">${e.t}</td><td>${e.o}</td><td class="${tc}">${e.y.toUpperCase()}</td><td class="${vc}">${e.v.toFixed(2)}</td><td>${e.p.toFixed(5)}</td><td class="${slc}">${e.s.toFixed(5)}</td><td class="${tpc}">${e.k.toFixed(5)}</td><td class="${pc}">${e.r.toFixed(2)}</td><td>${e.b.toFixed(2)}</td></tr>`;
+            });
+            return `<table><thead><tr><th>#</th><th>Time</th><th>Order</th><th>Type</th><th>Volume</th><th>Price</th><th>S/L</th><th>T/P</th><th>Profit</th><th>Balance</th></tr></thead><tbody>${rows}</tbody></table>`;
+        }
+
+        function renderOrderEvents(events, orders, minV, maxV) {
+            let rows='';
+            const lastSL={},lastTP={};
+            events.forEach(e=>{
+                const dt=parseTime(e.t),h=dt?dt.getHours():0,sess=session(h);
+                const vc=volClass(e.v,minV,maxV);
+                const pos=orders[e.o];
+                let tc='';
+                if(e.y==='buy')tc='type-buy';
+                else if(e.y==='sell')tc='type-sell';
+                else if(e.y==='modify')tc='type-modify';
+                else if(e.y==='t/p')tc='tp-set';
+                else if(e.y==='s/l')tc=e.r!=null?(e.r>=0?'sl-profit':'sl-loss'):'';
+                else if(e.y==='close')tc=e.r!=null?(e.r>=0?'type-close-profit':'type-close-loss'):'';
+                const pCell=e.r!=null?`<td class="${e.r>0?'positive':e.r<0?'negative':''}">${e.r.toFixed(2)}</td>`:'<td class="empty">-</td>';
+                const bCell=e.b!=null?`<td>${e.b.toFixed(2)}</td>`:'<td class="empty">-</td>';
+                let slc='',tpc='',slVal=e.s>0?e.s.toFixed(5):'-',tpVal=e.k>0?e.k.toFixed(5):'-';
+                const slChanged=lastSL[e.o]!==e.s,tpChanged=lastTP[e.o]!==e.k;
+                if(e.y==='modify'){
+                    if(slChanged&&e.s>0){if(pos)slc=pos.type==='buy'?(e.s>pos.entry?'sl-profit':'sl-loss'):(e.s<pos.entry?'sl-profit':'sl-loss');}
+                    else slc='empty';
+                    if(tpChanged&&e.k>0)tpc='tp-set';
+                    else if(e.k>0)tpc='empty';
+                }else{
+                    if(e.s>0&&pos)slc=pos.type==='buy'?(e.s>pos.entry?'sl-profit':'sl-loss'):(e.s<pos.entry?'sl-profit':'sl-loss');
+                    if(e.k>0)tpc='tp-set';
+                }
+                lastSL[e.o]=e.s;lastTP[e.o]=e.k;
+                rows+=`<tr><td>${e.n}</td><td class="${sess.c}">${e.t}</td><td class="${tc}">${e.y.toUpperCase()}</td><td>${e.o}</td><td class="${vc}">${e.v.toFixed(2)}</td><td>${e.p.toFixed(5)}</td><td class="${slc}">${slVal}</td><td class="${tpc}">${tpVal}</td>${pCell}${bCell}</tr>`;
+            });
+            return `<table><thead><tr><th>#</th><th>Time</th><th>Type</th><th>Order</th><th>Volume</th><th>Price</th><th>S/L</th><th>T/P</th><th>Profit</th><th>Balance</th></tr></thead><tbody>${rows}</tbody></table>`;
+        }
+
+        function renderStats(s) {
+            return `<tr><th>Metric</th><th>Value</th><th>Metric</th><th>Value</th></tr>
+            <tr><td>Total Trades</td><td>${s.totalTrades}</td><td>Initial Deposit</td><td>${fmt(s.deposit)}</td></tr>
+            <tr><td>Winning Trades</td><td class="positive">${s.winCount} (${fmt(s.winRate,1)}%)</td><td>Gross Profit</td><td class="positive">${fmt(s.grossProfit)}</td></tr>
+            <tr><td>Losing Trades</td><td class="negative">${s.lossCount} (${fmt(100-s.winRate,1)}%)</td><td>Gross Loss</td><td class="negative">${fmt(s.grossLoss)}</td></tr>
+            <tr><td>Largest Win</td><td class="positive">${fmt(s.largestWin)}</td><td>Largest Loss</td><td class="negative">${fmt(s.largestLoss)}</td></tr>
+            <tr><td>Average Win</td><td class="positive">${fmt(s.avgWin)}</td><td>Average Loss</td><td class="negative">${fmt(s.avgLoss)}</td></tr>
+            <tr><td>Max Consec. Wins</td><td>${s.consec.wins} (${fmt(s.consec.wProfit)})</td><td>Max Consec. Losses</td><td>${s.consec.losses} (${fmt(s.consec.lLoss)})</td></tr>
+            <tr><td>Absolute Drawdown</td><td class="negative">${fmt(s.maxDDAbs)}</td><td>Max Drawdown %</td><td class="negative">${fmt(s.maxDD)}%</td></tr>`;
+        }
+
+        function init() {
+            if (!RAW?.meta) { document.body.innerHTML='<div class="container"><h1>Error</h1><p>No report data.</p></div>'; return; }
+            const s = analyze(RAW);
+            const m = s.meta;
+
+            document.getElementById('subtitle').textContent = `${m.expert||'EA'} | ${m.symbol||''}`;
+            document.getElementById('test-info').innerHTML = `<p><strong>Period:</strong> ${m.period||'-'}</p><p><strong>Model:</strong> ${m.model||'-'}</p><p><strong>Bars:</strong> ${(m.bars||0).toLocaleString()} | <strong>Ticks:</strong> ${(m.ticks||0).toLocaleString()} | <strong>Quality:</strong> ${m.quality||'-'}</p><p><strong>Spread:</strong> ${m.spread||'-'} | <strong>Errors:</strong> ${m.errors||0}</p>`;
+
+            document.getElementById('perf-cards').innerHTML =
+                card('Net Profit',fmt(s.netProfit),'Total profit after losses. Higher is better.',s.netProfit>=0?'positive':'negative')+
+                card('Profit Factor',fmt(s.profitFactor),'Gross Profit / Gross Loss. Target: > 1.5',s.profitFactor>=1.5?'positive':s.profitFactor>=1?'neutral':'negative')+
+                card('Win Rate',`${fmt(s.winRate,1)}%`,'Percentage of winning trades. Target: > 50%',s.winRate>=50?'positive':'negative',`${s.winCount} / ${s.totalTrades} trades`)+
+                card('Max Drawdown',`${fmt(s.maxDD)}%`,'Largest peak-to-valley decline. Lower is better.','negative',`${fmt(s.maxDDAbs)} absolute`);
+
+            document.getElementById('pos-cards').innerHTML =
+                card('Long Positions',s.longs.toString(),'Buy positions and win rate.','',`Win: ${fmt(s.longWinRate,1)}%`)+
+                card('Short Positions',s.shorts.toString(),'Sell positions and win rate.','',`Win: ${fmt(s.shortWinRate,1)}%`)+
+                card('Expected Payoff',fmt(s.expectedPayoff),'Average profit per trade.',s.expectedPayoff>=0?'positive':'negative')+
+                card('Total Events',s.events.length.toString(),'All order events including opens/modifies.','');
+
+            document.getElementById('adv-cards-1').innerHTML =
+                card('Sharpe Ratio',fmt(s.sharpe),'Risk-adjusted return. Target: > 1.0',s.sharpe>=2?'positive':s.sharpe>=1?'neutral':'negative')+
+                card('Sortino Ratio',fmt(s.sortino),'Like Sharpe but only penalizes downside.',s.sortino>=2?'positive':s.sortino>=1?'neutral':'negative')+
+                card('Recovery Factor',fmt(s.recovery),'Net Profit / Max Drawdown. Target: > 3.0',s.recovery>=3?'positive':s.recovery>=1?'neutral':'negative')+
+                card('Z-Score',fmt(s.zScore),'Tests win/loss streakiness. Near 0 = random.','neutral',`${fmt(s.zProb)}% confidence`);
+
+            document.getElementById('adv-cards-2').innerHTML =
+                card('AHPR',fmt(s.ahpr,4),'Avg Holding Period Return. Should be > 1.0',s.ahpr>1?'positive':'negative')+
+                card('GHPR',fmt(s.ghpr,4),'Geometric HPR. Accounts for compounding.',s.ghpr>1?'positive':'negative')+
+                card('LR Correlation',fmt(s.lrCorr),'Equity curve linearity. Target: > 0.9',s.lrCorr>=.9?'positive':s.lrCorr>=.7?'neutral':'negative')+
+                card('Std Deviation',`${fmt(s.stdDev,4)}%`,'Return volatility. Lower = more consistent.','');
+
+            document.getElementById('equity-chart').innerHTML = lineChart(s.equity,s.equity,{title:'Equity & Balance Curve',xLabel:'Trade #',yLabel:'Account Value',l1:'Equity',l2:'Balance'});
+            document.getElementById('dd-chart').innerHTML = lineChart(s.ddCurve,null,{title:'Drawdown %',xLabel:'Trade #',yLabel:'Drawdown %',c1:'#f44336',zero:true});
+            document.getElementById('profit-chart').innerHTML = scatterChart(s.closed.map(t=>({x:t.n,y:t.r})),{title:'Profit vs Trade Sequence',xLabel:'Trade #',yLabel:'Profit',w:800,h:200,color:'#4CAF50'});
+            document.getElementById('dist-charts').innerHTML = renderDistCharts(s.closed);
+            document.getElementById('mfe-mae').innerHTML = renderMfeMae(s.closed);
+            document.getElementById('stats-table').innerHTML = renderStats(s);
+
+            const vols = s.events.map(e=>e.v), minV=Math.min(...vols), maxV=Math.max(...vols);
+            document.getElementById('order-book').innerHTML = renderOrderBook(s.closed, s.orders, minV, maxV);
+            document.getElementById('order-events').innerHTML = renderOrderEvents(s.events, s.orders, minV, maxV);
+            document.getElementById('footer').textContent = `Generated ${new Date().toISOString().slice(0,19).replace('T',' ')} | MQL4 Build & Test Analyzer`;
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    })();
+    </script>
+</body>
+</html>

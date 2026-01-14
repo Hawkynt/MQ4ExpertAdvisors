@@ -426,7 +426,7 @@ class Order:public Object {
     /// <returns>A new instance which has identical field values</returns>
     Order* Copy(){
       Order* result=new Order();
-      result._CopyFromOtherOrder((Order*)this);
+      result._CopyFromOtherOrder(GetPointer(this));
       return(result);
     }
 };

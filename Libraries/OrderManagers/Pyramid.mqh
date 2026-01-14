@@ -76,6 +76,13 @@ class OrderManagers__Pyramid:public OrderManagers__AExistingOrdersManager {
          return;
       
       Order* newOrder=Order::CreateMarketOrder(order.SymbolName(),order.IsBuy(),lots,"Pyramid");
+
+      // Copy parent order's SL/TP to protect pyramid positions
+      if(order.HasStopLoss())
+        newOrder.StopLoss(order.StopLoss());
+      if(order.HasTakeProfit())
+        newOrder.TakeProfit(order.TakeProfit());
+
       newOrder.Commit();
       Print("Building Pyramid on");
       order.Print();
