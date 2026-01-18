@@ -48,10 +48,18 @@ $ExpertsDir = Join-Path $ProjectRoot "Experts"
 $ConfigFile = Join-Path $ScriptDir "BuildAndTest.ini"
 $ReportsDir = Join-Path $ProjectRoot "TestReports"
 
-# Period mapping (name to MT4 period value in minutes)
+# Period mapping (name to MT4 Strategy Tester dropdown index)
+# MT4 Tester uses 0-8 index, NOT minute values
 $PeriodMap = @{
-    "M1" = 1; "M5" = 5; "M15" = 15; "M30" = 30
-    "H1" = 60; "H4" = 240; "D1" = 1440; "W1" = 10080; "MN" = 43200
+    "M1" = 0; "M5" = 1; "M15" = 2; "M30" = 3
+    "H1" = 4; "H4" = 5; "D1" = 6; "W1" = 7; "MN" = 8
+}
+
+# Helper to convert date string to Unix timestamp
+function ConvertTo-UnixTimestamp {
+    param([string]$DateString)
+    $date = [DateTime]::ParseExact($DateString, "yyyy.MM.dd", $null)
+    return [int][double]::Parse((Get-Date $date -UFormat %s))
 }
 
 function Write-Header {
@@ -347,6 +355,27 @@ if (Test-Path $terminalIniPath) {
     Write-Status "Updated terminal.ini" "SUCCESS"
 } else {
     Write-Status "terminal.ini not found, skipping config" "WARN"
+}
+
+# Also update tester/lastparameters.ini (the Strategy Tester cache)
+$testerFolder = Join-Path $TempDataDir "tester"
+$lastParamsPath = Join-Path $testerFolder "lastparameters.ini"
+if (Test-Path $lastParamsPath) {
+    $fromTimestamp = ConvertTo-UnixTimestamp -DateString $FromDate
+    $toTimestamp = ConvertTo-UnixTimestamp -DateString $ToDate
+
+    $lastParamsContent = @"
+optimization=0
+genetic=1
+fitnes=0
+method=$Model
+use_date=1
+from=$fromTimestamp
+to=$toTimestamp
+
+"@
+    Set-Content -Path $lastParamsPath -Value $lastParamsContent
+    Write-Status "Updated tester/lastparameters.ini (dates as Unix timestamps)" "SUCCESS"
 }
 
 Write-Status "  Expert: $TestExpertName.ex4" "INFO"
