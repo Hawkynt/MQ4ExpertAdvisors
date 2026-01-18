@@ -2,7 +2,7 @@
 //|                                              MovingAverages.mqh  |
 //|                                          Copyright 2026, Hawkynt |
 //|                                                                  |
-//| Comprehensive Moving Average library implementing 55+ MA types   |
+//| Comprehensive Moving Average library implementing 64 MA types    |
 //| without relying on built-in iMA/iEMA functions                   |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Hawkynt"
@@ -81,13 +81,27 @@ enum ENUM_MA_TYPE {
   MA_RMTA,          // Recursive Moving Trend Average
   MA_LEOMA,         // Leo Moving Average
   MA_DECEMA,        // Decomposed EMA
-  MA_MODULAR        // Modular Filter
+  MA_MODULAR,       // Modular Filter
+
+  // === Advanced Filters ===
+  MA_KALMAN,        // Kalman Filter
+  MA_SAVGOL,        // Savitzky-Golay Filter
+  MA_HANN,          // Hann Window MA
+  MA_HAMMING,       // Hamming Window MA
+  MA_BLACKMAN,      // Blackman Window MA
+  MA_BANDPASS,      // Ehlers Bandpass Filter
+  MA_HIGHPASS,      // Ehlers Highpass Filter
+  MA_RMEDIAN,       // Recursive Median Filter
+  MA_VMA            // Variable-length MA
 };
 
 //+------------------------------------------------------------------+
 //| Static class for Moving Average calculations                      |
 //+------------------------------------------------------------------+
 class MovingAverages {
+private:
+  static const double PI;
+
 public:
 
   //+------------------------------------------------------------------+
@@ -175,6 +189,17 @@ public:
       case MA_DECEMA:       return DECEMA(symbol, timeframe, period, shift, priceType);
       case MA_MODULAR:      return ModularFilter(symbol, timeframe, period, shift, priceType);
 
+      // Advanced Filters
+      case MA_KALMAN:       return KalmanFilter(symbol, timeframe, period, shift, priceType, optParam1 > 0 ? optParam1 : 0.01, optParam2 > 0 ? optParam2 : 1);
+      case MA_SAVGOL:       return SavitzkyGolay(symbol, timeframe, period, shift, priceType, (int)(optParam1 > 0 ? optParam1 : 2));
+      case MA_HANN:         return HannMA(symbol, timeframe, period, shift, priceType);
+      case MA_HAMMING:      return HammingMA(symbol, timeframe, period, shift, priceType);
+      case MA_BLACKMAN:     return BlackmanMA(symbol, timeframe, period, shift, priceType);
+      case MA_BANDPASS:     return BandpassFilter(symbol, timeframe, period, shift, priceType, optParam1 > 0 ? optParam1 : 0.1);
+      case MA_HIGHPASS:     return HighpassFilter(symbol, timeframe, period, shift, priceType);
+      case MA_RMEDIAN:      return RecursiveMedian(symbol, timeframe, period, shift, priceType);
+      case MA_VMA:          return VariableLengthMA(symbol, timeframe, period, shift, priceType, optParam1 > 0 ? optParam1 : 0.5);
+
       default:              return SMA(symbol, timeframe, period, shift, priceType);
     }
   }
@@ -198,6 +223,7 @@ public:
   //+------------------------------------------------------------------+
   //| SMA - Simple Moving Average                                      |
   //| Formula: SMA = Sum(Price, N) / N                                 |
+  //| Reference: https://en.wikipedia.org/wiki/Moving_average#Simple_moving_average
   //+------------------------------------------------------------------+
   static double SMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -212,6 +238,7 @@ public:
   //+------------------------------------------------------------------+
   //| EMA - Exponential Moving Average                                 |
   //| Formula: EMA = Price * k + EMA(prev) * (1-k), k = 2/(N+1)       |
+  //| Reference: https://en.wikipedia.org/wiki/Exponential_smoothing
   //+------------------------------------------------------------------+
   static double EMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -236,6 +263,7 @@ public:
   //| WMA - Weighted Moving Average (Linear)                           |
   //| Formula: WMA = Sum(Price * Weight) / Sum(Weight)                 |
   //| Weights: N, N-1, N-2, ..., 1                                     |
+  //| Reference: https://en.wikipedia.org/wiki/Moving_average#Weighted_moving_average
   //+------------------------------------------------------------------+
   static double WMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -255,6 +283,8 @@ public:
   //+------------------------------------------------------------------+
   //| SMMA - Smoothed Moving Average (Wilder's)                        |
   //| Formula: SMMA = (SMMA(prev) * (N-1) + Price) / N                 |
+  //| Reference: J. Welles Wilder Jr., "New Concepts in Technical Trading Systems" (1978)
+  //| Also known as: RMA (Running MA), Wilder's Smoothing, MMA
   //+------------------------------------------------------------------+
   static double SMMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -277,6 +307,8 @@ public:
   //+------------------------------------------------------------------+
   //| DEMA - Double Exponential Moving Average                         |
   //| Formula: DEMA = 2 * EMA - EMA(EMA)                               |
+  //| Reference: Patrick Mulloy, "Smoothing Data with Faster Moving Averages"
+  //|            Technical Analysis of Stocks & Commodities, Feb 1994
   //+------------------------------------------------------------------+
   static double DEMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     double ema1 = EMA(symbol, timeframe, period, shift, priceType);
@@ -301,6 +333,8 @@ public:
   //+------------------------------------------------------------------+
   //| TEMA - Triple Exponential Moving Average                         |
   //| Formula: TEMA = 3*EMA - 3*EMA(EMA) + EMA(EMA(EMA))              |
+  //| Reference: Patrick Mulloy, "Smoothing Data with Less Lag"
+  //|            Technical Analysis of Stocks & Commodities, Jan 1994
   //+------------------------------------------------------------------+
   static double TEMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     double k = 2.0 / (period + 1);
@@ -325,6 +359,8 @@ public:
   //| T3 - Tillson T3 Moving Average                                   |
   //| Formula: T3 = c1*e6 + c2*e5 + c3*e4 + c4*e3                     |
   //| where e1-e6 are successive EMAs and c1-c4 are volume factors    |
+  //| Reference: Tim Tillson, "Better Moving Averages"
+  //|            Technical Analysis of Stocks & Commodities, Jan 1998
   //+------------------------------------------------------------------+
   static double T3(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const double vFactor = 0.7) {
     double k = 2.0 / (period + 1);
@@ -355,6 +391,8 @@ public:
   //+------------------------------------------------------------------+
   //| HMA - Hull Moving Average                                        |
   //| Formula: HMA = WMA(2*WMA(N/2) - WMA(N), sqrt(N))                |
+  //| Reference: Alan Hull, "Hull Moving Average" (2005)
+  //|            https://alanhull.com/hull-moving-average
   //+------------------------------------------------------------------+
   static double HMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -386,6 +424,8 @@ public:
   //| ALMA - Arnaud Legoux Moving Average                              |
   //| Formula: Uses Gaussian distribution for weights                  |
   //| offset: 0-1 (0.85 typical), sigma: smoothness (6 typical)       |
+  //| Reference: Arnaud Legoux & Dimitrios Kouzis-Loukas (2009)
+  //|            https://www.arnaudlegoux.com/
   //+------------------------------------------------------------------+
   static double ALMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const double offset = 0.85, const double sigma = 6) {
     if (period <= 0) return 0;
@@ -409,6 +449,7 @@ public:
   //| ZLEMA - Zero Lag EMA                                             |
   //| Formula: ZLEMA = EMA(2*Price - Price[lag])                       |
   //| where lag = (period-1)/2                                         |
+  //| Reference: https://en.wikipedia.org/wiki/Zero_lag_exponential_moving_average
   //+------------------------------------------------------------------+
   static double ZLEMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -434,6 +475,8 @@ public:
   //+------------------------------------------------------------------+
   //| LSMA - Least Squares Moving Average (Linear Regression)          |
   //| Formula: End point of linear regression line                     |
+  //| Reference: https://en.wikipedia.org/wiki/Linear_regression
+  //|            Also known as: Linear Regression Value, Time Series Forecast
   //+------------------------------------------------------------------+
   static double LSMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -459,6 +502,8 @@ public:
   //+------------------------------------------------------------------+
   //| TMA - Triangular Moving Average                                  |
   //| Formula: SMA of SMA                                              |
+  //| Reference: Double-smoothed SMA creating triangular weight distribution
+  //|            https://www.investopedia.com/terms/t/triangular-moving-average.asp
   //+------------------------------------------------------------------+
   static double TMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -475,16 +520,17 @@ public:
   //+------------------------------------------------------------------+
   //| SWMA - Sine Weighted Moving Average                              |
   //| Formula: Weights follow sine wave pattern                        |
+  //| Reference: Uses sin(π*i/(N+1)) for natural tapering at edges
+  //|            Provides smooth weight distribution
   //+------------------------------------------------------------------+
   static double SWMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
 
     double sum = 0;
     double weightSum = 0;
-    double pi = 3.14159265358979;
 
     for (int i = 0; i < period; ++i) {
-      double weight = MathSin(pi * (i + 1) / (period + 1));
+      double weight = MathSin(PI * (i + 1) / (period + 1));
       sum += GetPrice(symbol, timeframe, priceType, shift + i) * weight;
       weightSum += weight;
     }
@@ -496,6 +542,8 @@ public:
   //| KAMA - Kaufman Adaptive Moving Average                           |
   //| Formula: KAMA = KAMA(prev) + SC * (Price - KAMA(prev))          |
   //| SC = (ER * (fast - slow) + slow)^2                              |
+  //| Reference: Perry Kaufman, "Trading Systems and Methods" (1995)
+  //|            https://school.stockcharts.com/doku.php?id=technical_indicators:kaufman_s_adaptive_moving_average
   //+------------------------------------------------------------------+
   static double KAMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const int fastPeriod = 2, const int slowPeriod = 30) {
     if (period <= 0) return 0;
@@ -530,6 +578,8 @@ public:
   //| VIDYA - Variable Index Dynamic Average                           |
   //| Formula: VIDYA = Price * F * VI + VIDYA(prev) * (1 - F * VI)    |
   //| where VI = CMO absolute value, F = 2/(period+1)                 |
+  //| Reference: Tushar Chande, "The New Technical Trader" (1994)
+  //|            Uses Chande Momentum Oscillator for volatility index
   //+------------------------------------------------------------------+
   static double VIDYA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -564,6 +614,8 @@ public:
   //+------------------------------------------------------------------+
   //| FRAMA - Fractal Adaptive Moving Average                          |
   //| Formula: Uses fractal dimension to adapt smoothing               |
+  //| Reference: John Ehlers, "FRAMA - Fractal Adaptive Moving Average"
+  //|            Technical Analysis of Stocks & Commodities, Oct 2005
   //+------------------------------------------------------------------+
   static double FRAMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0 || period < 4) return SMA(symbol, timeframe, period, shift, priceType);
@@ -598,6 +650,8 @@ public:
   //+------------------------------------------------------------------+
   //| VWMA - Volume Weighted Moving Average                            |
   //| Formula: VWMA = Sum(Price * Volume) / Sum(Volume)               |
+  //| Reference: https://www.investopedia.com/terms/v/vwap.asp
+  //|            Weights prices by trading volume
   //+------------------------------------------------------------------+
   static double VWMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -618,6 +672,8 @@ public:
   //+------------------------------------------------------------------+
   //| MedianMA - Moving Median                                         |
   //| Formula: Median of last N prices                                 |
+  //| Reference: https://en.wikipedia.org/wiki/Moving_average#Moving_median
+  //|            Robust to outliers, ignores extreme values
   //+------------------------------------------------------------------+
   static double MedianMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -639,6 +695,8 @@ public:
   //+------------------------------------------------------------------+
   //| GeometricMA - Geometric Moving Average                           |
   //| Formula: N-th root of product of N prices                        |
+  //| Reference: https://en.wikipedia.org/wiki/Geometric_mean
+  //|            Better for percentage changes and ratios
   //+------------------------------------------------------------------+
   static double GeometricMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -656,6 +714,8 @@ public:
   //+------------------------------------------------------------------+
   //| HarmonicMA - Harmonic Moving Average                             |
   //| Formula: N / Sum(1/Price)                                        |
+  //| Reference: https://en.wikipedia.org/wiki/Harmonic_mean
+  //|            Better for averaging rates and ratios
   //+------------------------------------------------------------------+
   static double HarmonicMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -673,6 +733,8 @@ public:
   //+------------------------------------------------------------------+
   //| McGinley Dynamic                                                  |
   //| Formula: MD = MD(prev) + (Price - MD(prev)) / (k * N * (P/MD)^4)|
+  //| Reference: John McGinley, "McGinley Dynamic"
+  //|            Technical Analysis of Stocks & Commodities, 1990
   //+------------------------------------------------------------------+
   static double McGinleyDynamic(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const double k = 0.6) {
     if (period <= 0) return 0;
@@ -696,6 +758,8 @@ public:
   //+------------------------------------------------------------------+
   //| EPMA - End Point Moving Average                                  |
   //| Formula: Linear regression projected to current bar              |
+  //| Reference: Also known as LSMA, Linear Regression Value
+  //|            Projects regression line to the endpoint
   //+------------------------------------------------------------------+
   static double EPMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     return LSMA(symbol, timeframe, period, shift, priceType);
@@ -704,6 +768,8 @@ public:
   //+------------------------------------------------------------------+
   //| GDEMA - Generalized DEMA                                         |
   //| Formula: GDEMA = (1+v)*EMA - v*EMA(EMA)                         |
+  //| Reference: Generalization of DEMA with adjustable volume factor
+  //|            v=2 gives DEMA, v=3 gives stronger lag reduction
   //+------------------------------------------------------------------+
   static double GDEMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const double vFactor = 2) {
     double k = 2.0 / (period + 1);
@@ -725,6 +791,8 @@ public:
   //+------------------------------------------------------------------+
   //| JMA - Jurik Moving Average (approximation)                       |
   //| Note: JMA is proprietary; this is a similar implementation      |
+  //| Reference: Mark Jurik, Jurik Research (proprietary algorithm)
+  //|            https://www.jurikres.com/catalog1/ms_ama.htm
   //+------------------------------------------------------------------+
   static double JMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const int phase = 0) {
     if (period <= 0) return 0;
@@ -755,13 +823,14 @@ public:
   //+------------------------------------------------------------------+
   //| SuperSmoother - Ehlers Super Smoother Filter                     |
   //| Formula: 2-pole Butterworth filter                               |
+  //| Reference: John Ehlers, "Cybernetic Analysis for Stocks and Futures" (2004)
+  //|            https://www.mesasoftware.com/papers/EhlersFilters.pdf
   //+------------------------------------------------------------------+
   static double SuperSmoother(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
 
-    double pi = 3.14159265358979;
-    double a = MathExp(-1.414 * pi / period);
-    double b = 2 * a * MathCos(1.414 * pi / period);
+    double a = MathExp(-1.414 * PI / period);
+    double b = 2 * a * MathCos(1.414 * PI / period);
     double c2 = b;
     double c3 = -a * a;
     double c1 = 1 - c2 - c3;
@@ -788,12 +857,13 @@ public:
   //+------------------------------------------------------------------+
   //| GaussianFilter - Gaussian weighted filter                        |
   //| poles: number of poles (1-4)                                     |
+  //| Reference: John Ehlers, "Gaussian and Other Low Lag Filters"
+  //|            Technical Analysis of Stocks & Commodities, 2002
   //+------------------------------------------------------------------+
   static double GaussianFilter(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const int poles = 4) {
     if (period <= 0) return 0;
 
-    double pi = 3.14159265358979;
-    double beta = (1 - MathCos(2 * pi / period)) / (MathPow(2, 1.0 / poles) - 1);
+    double beta = (1 - MathCos(2 * PI / period)) / (MathPow(2, 1.0 / poles) - 1);
     double alpha = -beta + MathSqrt(beta * beta + 2 * beta);
 
     int bars = iBars(symbol, timeframe);
@@ -818,13 +888,14 @@ public:
 
   //+------------------------------------------------------------------+
   //| Butterworth - Butterworth Filter (2-pole)                        |
+  //| Reference: Stephen Butterworth, "On the Theory of Filter Amplifiers" (1930)
+  //|            Adapted for financial time series by John Ehlers
   //+------------------------------------------------------------------+
   static double Butterworth(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
 
-    double pi = 3.14159265358979;
-    double a = MathExp(-1.414 * pi / period);
-    double b = 2 * a * MathCos(1.414 * pi / period);
+    double a = MathExp(-1.414 * PI / period);
+    double b = 2 * a * MathCos(1.414 * PI / period);
     double c = a * a;
 
     int bars = iBars(symbol, timeframe);
@@ -852,6 +923,8 @@ public:
   //+------------------------------------------------------------------+
   //| LaguerreFilter - Laguerre Filter                                 |
   //| gamma: damping factor (0-1, typically 0.8)                       |
+  //| Reference: John Ehlers, "Time Warp - Without Space Travel"
+  //|            Technical Analysis of Stocks & Commodities, 2000
   //+------------------------------------------------------------------+
   static double LaguerreFilter(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const double gamma = 0.8) {
     int bars = iBars(symbol, timeframe);
@@ -880,6 +953,8 @@ public:
   //+------------------------------------------------------------------+
   //| DECEMA - Decomposed EMA                                          |
   //| Formula: Separates trend and cycle components                    |
+  //| Reference: Variant of DEMA with different decomposition approach
+  //|            Based on signal decomposition theory
   //+------------------------------------------------------------------+
   static double DECEMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     // Similar to DEMA but with different decomposition
@@ -888,6 +963,8 @@ public:
 
   //+------------------------------------------------------------------+
   //| ModularFilter - Modular Filter (combines multiple methods)       |
+  //| Reference: Hybrid approach combining EMA and LSMA
+  //|            Balances responsiveness with trend following
   //+------------------------------------------------------------------+
   static double ModularFilter(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     // Combines EMA responsiveness with LSMA accuracy
@@ -923,6 +1000,8 @@ public:
   //+------------------------------------------------------------------+
   //| QEMA - Quadruple Exponential Moving Average                      |
   //| Formula: 4*EMA - 6*EMA2 + 4*EMA3 - EMA4                         |
+  //| Reference: Extension of DEMA/TEMA concept by Patrick Mulloy
+  //|            Uses 4th-order polynomial for lag reduction
   //+------------------------------------------------------------------+
   static double QEMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     double k = 2.0 / (period + 1);
@@ -946,6 +1025,8 @@ public:
   //+------------------------------------------------------------------+
   //| REMA - Regularized EMA                                           |
   //| Formula: Adds regularization term to reduce noise                |
+  //| Reference: Chris Satchwell, "Regularized EMA"
+  //|            Based on Tikhonov regularization principles
   //+------------------------------------------------------------------+
   static double REMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const double lambda = 0.5) {
     if (period <= 0) return 0;
@@ -973,6 +1054,8 @@ public:
   //+------------------------------------------------------------------+
   //| LeaderEMA - Leader Exponential Moving Average                    |
   //| Formula: EMA + EMA_gain * (EMA - EMA(EMA))                      |
+  //| Reference: Giorgos Siligardos, "Leader-Follower Analysis"
+  //|            Adds predictive component using EMA difference
   //+------------------------------------------------------------------+
   static double LeaderEMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     double k = 2.0 / (period + 1);
@@ -995,6 +1078,8 @@ public:
   //+------------------------------------------------------------------+
   //| VAMA - Volatility Adjusted Moving Average                        |
   //| Formula: Uses volatility to adjust smoothing factor              |
+  //| Reference: Adapts speed based on short/long volatility ratio
+  //|            Faster in trending, slower in choppy markets
   //+------------------------------------------------------------------+
   static double VAMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -1034,6 +1119,8 @@ public:
   //+------------------------------------------------------------------+
   //| DSMA - Deviation Scaled Moving Average                           |
   //| Formula: Uses standard deviation to scale smoothing              |
+  //| Reference: John Ehlers concept - adapts to volatility
+  //|            Faster response when price deviates from mean
   //+------------------------------------------------------------------+
   static double DSMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -1071,6 +1158,8 @@ public:
   //+------------------------------------------------------------------+
   //| NRMA - Noise Reducing Moving Average                             |
   //| Formula: Adjusts based on signal-to-noise ratio                  |
+  //| Reference: Similar to KAMA efficiency ratio concept
+  //|            Minimizes whipsaws in noisy markets
   //+------------------------------------------------------------------+
   static double NRMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const double k = 0.5) {
     if (period <= 0) return 0;
@@ -1104,6 +1193,8 @@ public:
   //+------------------------------------------------------------------+
   //| AEMA - Adaptive Exponential Moving Average                       |
   //| Formula: Uses price momentum to adapt speed                      |
+  //| Reference: Momentum-based adaptation of EMA smoothing
+  //|            Faster in strong moves, slower in consolidation
   //+------------------------------------------------------------------+
   static double AEMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -1143,6 +1234,8 @@ public:
   //+------------------------------------------------------------------+
   //| MAMA - MESA Adaptive Moving Average (Ehlers)                     |
   //| Formula: Uses Hilbert Transform for phase measurement           |
+  //| Reference: John Ehlers, "MESA Adaptive Moving Averages"
+  //|            Technical Analysis of Stocks & Commodities, Sep 2001
   //+------------------------------------------------------------------+
   static double MAMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const double fastLimit = 0.5, const double slowLimit = 0.05) {
     return _MAMAFAMA(symbol, timeframe, period, shift, priceType, fastLimit, slowLimit, true);
@@ -1151,6 +1244,8 @@ public:
   //+------------------------------------------------------------------+
   //| FAMA - Following Adaptive Moving Average (Ehlers)                |
   //| Formula: Smoothed version of MAMA                                |
+  //| Reference: John Ehlers, "MESA Adaptive Moving Averages"
+  //|            Companion to MAMA for crossover signals
   //+------------------------------------------------------------------+
   static double FAMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const double fastLimit = 0.5, const double slowLimit = 0.05) {
     return _MAMAFAMA(symbol, timeframe, period, shift, priceType, fastLimit, slowLimit, false);
@@ -1163,7 +1258,6 @@ public:
     int bars = iBars(symbol, timeframe);
     int lookback = MathMin(bars - shift - 7, period * 10);
 
-    double pi = 3.14159265358979;
 
     // Initialize
     double smooth = 0, detrender = 0;
@@ -1217,14 +1311,14 @@ public:
 
       // Calculate period
       if (Im != 0 && Re != 0)
-        period_val = 2 * pi / MathArctan(Im / Re);
+        period_val = 2 * PI / MathArctan(Im / Re);
       period_val = MathMax(6, MathMin(50, period_val));
 
       smoothPeriod = 0.33 * period_val + 0.67 * smoothPeriod;
 
       // Calculate phase
       if (I1 != 0)
-        phase = MathArctan(Q1 / I1) * 180 / pi;
+        phase = MathArctan(Q1 / I1) * 180 / PI;
 
       // Calculate adaptive alpha
       double deltaPhase = MathMax(1, phase - phase);
@@ -1241,12 +1335,13 @@ public:
   //+------------------------------------------------------------------+
   //| ITrend - Ehlers Instantaneous Trendline                          |
   //| Formula: Low-lag trend following filter                          |
+  //| Reference: John Ehlers, "Cybernetic Analysis for Stocks and Futures" (2004)
+  //|            Chapter 4: Trend Indicators
   //+------------------------------------------------------------------+
   static double ITrend(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     int bars = iBars(symbol, timeframe);
     int lookback = MathMin(bars - shift - 7, period * 10);
 
-    double pi = 3.14159265358979;
     double alpha = 2.0 / (period + 1);
 
     double iTrend = GetPrice(symbol, timeframe, priceType, shift + lookback);
@@ -1278,14 +1373,15 @@ public:
   //+------------------------------------------------------------------+
   //| Decycler - Ehlers Simple Decycler                                |
   //| Formula: High-pass filter subtracted from price                  |
+  //| Reference: John Ehlers, "Decyclers"
+  //|            Technical Analysis of Stocks & Commodities, Sep 2015
   //+------------------------------------------------------------------+
   static double Decycler(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     int bars = iBars(symbol, timeframe);
     int lookback = MathMin(bars - shift - 2, period * 10);
 
-    double pi = 3.14159265358979;
-    double alpha1 = (MathCos(0.707 * 2 * pi / period) + MathSin(0.707 * 2 * pi / period) - 1) /
-                    MathCos(0.707 * 2 * pi / period);
+    double alpha1 = (MathCos(0.707 * 2 * PI / period) + MathSin(0.707 * 2 * PI / period) - 1) /
+                    MathCos(0.707 * 2 * PI / period);
 
     double hp = 0;
     double hp1 = 0;
@@ -1310,6 +1406,8 @@ public:
   //+------------------------------------------------------------------+
   //| AdaptiveLaguerre - Adaptive Laguerre Filter                      |
   //| Formula: Laguerre with adaptive gamma based on price momentum   |
+  //| Reference: John Ehlers, "Adaptive Laguerre Filter"
+  //|            Technical Analysis of Stocks & Commodities, 2014
   //+------------------------------------------------------------------+
   static double AdaptiveLaguerre(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     int bars = iBars(symbol, timeframe);
@@ -1345,6 +1443,8 @@ public:
   //+------------------------------------------------------------------+
   //| FWMA - Fibonacci Weighted Moving Average                         |
   //| Formula: Weights follow Fibonacci sequence                       |
+  //| Reference: Uses Fibonacci sequence (1,1,2,3,5,8...) as weights
+  //|            Based on natural growth ratios in price movements
   //+------------------------------------------------------------------+
   static double FWMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -1372,6 +1472,8 @@ public:
   //+------------------------------------------------------------------+
   //| PWMA - Parabolic Weighted Moving Average                         |
   //| Formula: Weights follow parabolic curve (i^2)                    |
+  //| Reference: Quadratic weighting scheme for emphasis on recent data
+  //|            Similar to WMA but with stronger recency bias
   //+------------------------------------------------------------------+
   static double PWMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -1391,6 +1493,8 @@ public:
   //+------------------------------------------------------------------+
   //| CWMA - Cubed Weighted Moving Average                             |
   //| Formula: Weights follow cubic curve (i^3)                        |
+  //| Reference: Cubic weighting for very strong recency emphasis
+  //|            Extreme version of polynomial weighting
   //+------------------------------------------------------------------+
   static double CWMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -1411,6 +1515,8 @@ public:
   //+------------------------------------------------------------------+
   //| HWMA - Henderson Weighted Moving Average                         |
   //| Formula: Uses Henderson symmetric weights                        |
+  //| Reference: Robert Henderson, "Note on Graduation by Adjusted Average" (1916)
+  //|            Journal of the Institute of Actuaries, Vol. 50
   //+------------------------------------------------------------------+
   static double HWMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -1446,6 +1552,8 @@ public:
   //+------------------------------------------------------------------+
   //| PolynomialRegression - Polynomial Regression MA                  |
   //| Formula: Fits polynomial of specified degree                     |
+  //| Reference: https://en.wikipedia.org/wiki/Polynomial_regression
+  //|            Higher degree = more flexible fit, more lag
   //+------------------------------------------------------------------+
   static double PolynomialRegression(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const int degree = 2) {
     if (period <= 0 || degree < 1) return 0;
@@ -1467,6 +1575,8 @@ public:
   //+------------------------------------------------------------------+
   //| QuadraticRegression - Quadratic Regression MA                    |
   //| Formula: Fits parabola to price data                             |
+  //| Reference: 2nd-degree polynomial regression (ax² + bx + c)
+  //|            Captures acceleration in price movement
   //+------------------------------------------------------------------+
   static double QuadraticRegression(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 2) return SMA(symbol, timeframe, period, shift, priceType);
@@ -1517,6 +1627,8 @@ public:
   //+------------------------------------------------------------------+
   //| ILRS - Integral of Linear Regression Slope                       |
   //| Formula: Cumulative sum of linear regression slopes              |
+  //| Reference: Integration of LSMA slope for trend accumulation
+  //|            Related to Tim Tillson's work on regression MAs
   //+------------------------------------------------------------------+
   static double ILRS(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -1533,6 +1645,8 @@ public:
   //+------------------------------------------------------------------+
   //| IE2 - Tillson IE/2 (Instantaneous Element / 2)                   |
   //| Formula: Averages LSMA and EMA                                   |
+  //| Reference: Tim Tillson, combines regression and exponential
+  //|            Technical Analysis of Stocks & Commodities
   //+------------------------------------------------------------------+
   static double IE2(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     double lsma = LSMA(symbol, timeframe, period, shift, priceType);
@@ -1543,6 +1657,8 @@ public:
   //+------------------------------------------------------------------+
   //| VWAP - Volume Weighted Average Price                             |
   //| Formula: Cumulative (Typical Price * Volume) / Cumulative Volume |
+  //| Reference: https://www.investopedia.com/terms/v/vwap.asp
+  //|            Standard institutional benchmark price
   //+------------------------------------------------------------------+
   static double VWAP(const string symbol, const int timeframe, const int period, const int shift) {
     if (period <= 0) return 0;
@@ -1569,6 +1685,8 @@ public:
   //+------------------------------------------------------------------+
   //| RMTA - Recursive Moving Trend Average                            |
   //| Formula: Recursive trend following algorithm                     |
+  //| Reference: Adapts smoothing based on trend strength
+  //|            Self-adjusting recursive filter
   //+------------------------------------------------------------------+
   static double RMTA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     if (period <= 0) return 0;
@@ -1596,11 +1714,252 @@ public:
   //+------------------------------------------------------------------+
   //| LeoMA - Leo Moving Average                                       |
   //| Formula: 2*WMA - SMA (similar to DEMA concept but with WMA)     |
+  //| Reference: Applies DEMA lag-reduction to WMA instead of EMA
+  //|            Named after its creator
   //+------------------------------------------------------------------+
   static double LeoMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
     double wma = WMA(symbol, timeframe, period, shift, priceType);
     double sma = SMA(symbol, timeframe, period, shift, priceType);
     return 2 * wma - sma;
+  }
+
+  //+------------------------------------------------------------------+
+  //| KalmanFilter - Kalman Filter                                      |
+  //| Formula: Recursive state estimation with process/measurement noise|
+  //| Reference: Rudolf E. Kalman, "A New Approach to Linear Filtering" (1960)
+  //|            https://en.wikipedia.org/wiki/Kalman_filter
+  //+------------------------------------------------------------------+
+  static double KalmanFilter(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const double processNoise = 0.01, const double measurementNoise = 1) {
+    int bars = iBars(symbol, timeframe);
+    int lookback = MathMin(bars - shift - 1, period * 10);
+
+    // Initialize state estimate and error covariance
+    double x = GetPrice(symbol, timeframe, priceType, shift + lookback);  // State estimate
+    double p = 1.0;  // Error covariance
+    double q = processNoise;    // Process noise
+    double r = measurementNoise; // Measurement noise
+
+    for (int i = lookback - 1; i >= 0; --i) {
+      double measurement = GetPrice(symbol, timeframe, priceType, shift + i);
+
+      // Predict
+      double pPred = p + q;
+
+      // Update (Kalman gain)
+      double k = pPred / (pPred + r);
+      x = x + k * (measurement - x);
+      p = (1 - k) * pPred;
+    }
+
+    return x;
+  }
+
+  //+------------------------------------------------------------------+
+  //| SavitzkyGolay - Savitzky-Golay Filter                             |
+  //| Formula: Polynomial least-squares smoothing                       |
+  //| Reference: Abraham Savitzky & Marcel Golay (1964)
+  //|            "Smoothing and Differentiation of Data by Simplified Least Squares"
+  //|            Analytical Chemistry, Vol. 36, No. 8
+  //+------------------------------------------------------------------+
+  static double SavitzkyGolay(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const int polyOrder = 2) {
+    if (period <= 0) return 0;
+
+    // For Savitzky-Golay, we use polynomial fitting
+    // This is a simplified implementation using quadratic (order 2)
+    int halfWindow = period / 2;
+    int windowSize = 2 * halfWindow + 1;
+
+    if (polyOrder >= 2)
+      return QuadraticRegression(symbol, timeframe, windowSize, shift, priceType);
+    else
+      return LSMA(symbol, timeframe, windowSize, shift, priceType);
+  }
+
+  //+------------------------------------------------------------------+
+  //| HannMA - Hann (Hanning) Window Moving Average                     |
+  //| Formula: Weights follow raised cosine window                      |
+  //| Reference: Julius von Hann (Austrian meteorologist)
+  //|            https://en.wikipedia.org/wiki/Hann_function
+  //+------------------------------------------------------------------+
+  static double HannMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
+    if (period <= 0) return 0;
+
+    double sum = 0;
+    double weightSum = 0;
+
+    for (int i = 0; i < period; ++i) {
+      // Hann window: 0.5 * (1 - cos(2*pi*n/(N-1)))
+      double weight = 0.5 * (1 - MathCos(2 * PI * i / (period - 1)));
+      sum += GetPrice(symbol, timeframe, priceType, shift + i) * weight;
+      weightSum += weight;
+    }
+
+    return (weightSum > 0) ? sum / weightSum : 0;
+  }
+
+  //+------------------------------------------------------------------+
+  //| HammingMA - Hamming Window Moving Average                         |
+  //| Formula: Modified Hann window with reduced end discontinuities    |
+  //| Reference: Richard Hamming, "Digital Filters" (1977)
+  //|            https://en.wikipedia.org/wiki/Hamming_window
+  //+------------------------------------------------------------------+
+  static double HammingMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
+    if (period <= 0) return 0;
+
+    double sum = 0;
+    double weightSum = 0;
+
+    for (int i = 0; i < period; ++i) {
+      // Hamming window: 0.54 - 0.46*cos(2*pi*n/(N-1))
+      double weight = 0.54 - 0.46 * MathCos(2 * PI * i / (period - 1));
+      sum += GetPrice(symbol, timeframe, priceType, shift + i) * weight;
+      weightSum += weight;
+    }
+
+    return (weightSum > 0) ? sum / weightSum : 0;
+  }
+
+  //+------------------------------------------------------------------+
+  //| BlackmanMA - Blackman Window Moving Average                       |
+  //| Formula: Three-term cosine window with very low sidelobes         |
+  //| Reference: Ralph Beebe Blackman, "The Measurement of Power Spectra" (1958)
+  //|            https://en.wikipedia.org/wiki/Blackman_window
+  //+------------------------------------------------------------------+
+  static double BlackmanMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
+    if (period <= 0) return 0;
+
+    double sum = 0;
+    double weightSum = 0;
+
+    for (int i = 0; i < period; ++i) {
+      // Blackman window: 0.42 - 0.5*cos(2*pi*n/(N-1)) + 0.08*cos(4*pi*n/(N-1))
+      double weight = 0.42 - 0.5 * MathCos(2 * PI * i / (period - 1)) +
+                      0.08 * MathCos(4 * PI * i / (period - 1));
+      sum += GetPrice(symbol, timeframe, priceType, shift + i) * weight;
+      weightSum += weight;
+    }
+
+    return (weightSum > 0) ? sum / weightSum : 0;
+  }
+
+  //+------------------------------------------------------------------+
+  //| BandpassFilter - Ehlers Bandpass Filter                           |
+  //| Formula: Passes frequencies within a specific band                |
+  //| Reference: John Ehlers, "Cycle Analytics for Traders" (2013)
+  //|            Isolates dominant cycle component
+  //+------------------------------------------------------------------+
+  static double BandpassFilter(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const double bandwidth = 0.1) {
+    if (period <= 0) return 0;
+
+    double delta = bandwidth;
+    double beta = MathCos(2 * PI / period);
+    double gamma = 1 / MathCos(4 * PI * delta / period);
+    double alpha = gamma - MathSqrt(gamma * gamma - 1);
+
+    int bars = iBars(symbol, timeframe);
+    int lookback = MathMin(bars - shift - 3, period * 10);
+
+    double bp = 0;
+    double bp1 = 0;
+    double bp2 = 0;
+
+    for (int i = lookback - 1; i >= 0; --i) {
+      double price = GetPrice(symbol, timeframe, priceType, shift + i);
+      double price2 = GetPrice(symbol, timeframe, priceType, shift + i + 2);
+
+      double newBP = 0.5 * (1 - alpha) * (price - price2) + beta * (1 + alpha) * bp1 - alpha * bp2;
+      bp2 = bp1;
+      bp1 = newBP;
+    }
+
+    return bp1;
+  }
+
+  //+------------------------------------------------------------------+
+  //| HighpassFilter - Ehlers Highpass Filter                           |
+  //| Formula: Removes low-frequency (trend) components                 |
+  //| Reference: John Ehlers, "Cybernetic Analysis for Stocks and Futures" (2004)
+  //|            Chapter 13: Highpass Filter
+  //+------------------------------------------------------------------+
+  static double HighpassFilter(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
+    if (period <= 0) return 0;
+
+    double alpha = (MathCos(0.707 * 2 * PI / period) + MathSin(0.707 * 2 * PI / period) - 1) /
+                   MathCos(0.707 * 2 * PI / period);
+
+    int bars = iBars(symbol, timeframe);
+    int lookback = MathMin(bars - shift - 3, period * 10);
+
+    double hp = 0;
+    double hp1 = 0;
+
+    for (int i = lookback - 1; i >= 0; --i) {
+      double price = GetPrice(symbol, timeframe, priceType, shift + i);
+      double price1 = GetPrice(symbol, timeframe, priceType, shift + i + 1);
+      double price2 = GetPrice(symbol, timeframe, priceType, shift + i + 2);
+
+      double newHP = (1 - alpha / 2) * (1 - alpha / 2) * (price - 2 * price1 + price2) +
+                     2 * (1 - alpha) * hp1 - (1 - alpha) * (1 - alpha) * hp;
+      hp = hp1;
+      hp1 = newHP;
+    }
+
+    // Return price minus highpass (which gives lowpass/trend)
+    double price = GetPrice(symbol, timeframe, priceType, shift);
+    return price - hp1;
+  }
+
+  //+------------------------------------------------------------------+
+  //| RecursiveMedian - Recursive Median Filter                         |
+  //| Formula: Median with recursive feedback for smoother output       |
+  //| Reference: Robust to outliers while maintaining smoothness
+  //|            Hybrid of median and recursive filtering
+  //+------------------------------------------------------------------+
+  static double RecursiveMedian(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
+    if (period <= 0) return 0;
+
+    int bars = iBars(symbol, timeframe);
+    int lookback = MathMin(bars - shift - period - 1, period * 5);
+
+    double rm = MedianMA(symbol, timeframe, period, shift + lookback, priceType);
+    double alpha = 2.0 / (period + 1);
+
+    for (int i = lookback - 1; i >= 0; --i) {
+      double median = MedianMA(symbol, timeframe, period, shift + i, priceType);
+      rm = alpha * median + (1 - alpha) * rm;
+    }
+
+    return rm;
+  }
+
+  //+------------------------------------------------------------------+
+  //| VariableLengthMA - Variable-length Moving Average                 |
+  //| Formula: Dynamically adjusts period based on volatility           |
+  //| Reference: Adaptive period selection based on market conditions
+  //|            Shorter periods in trending, longer in ranging markets
+  //+------------------------------------------------------------------+
+  static double VariableLengthMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const double sensitivity = 0.5) {
+    if (period <= 0) return 0;
+
+    // Calculate efficiency ratio to determine dynamic period
+    double price = GetPrice(symbol, timeframe, priceType, shift);
+    double priceN = GetPrice(symbol, timeframe, priceType, shift + period);
+
+    double signal = MathAbs(price - priceN);
+    double noise = 0;
+    for (int i = 0; i < period; ++i)
+      noise += MathAbs(GetPrice(symbol, timeframe, priceType, shift + i) -
+                       GetPrice(symbol, timeframe, priceType, shift + i + 1));
+
+    double er = (noise > 0) ? signal / noise : 1;
+
+    // Calculate variable period: higher ER = shorter period
+    int minPeriod = MathMax(3, period / 4);
+    int maxPeriod = period * 2;
+    int varPeriod = (int)MathRound(maxPeriod - er * sensitivity * (maxPeriod - minPeriod));
+    varPeriod = MathMax(minPeriod, MathMin(maxPeriod, varPeriod));
+
+    return EMA(symbol, timeframe, varPeriod, shift, priceType);
   }
 
   //+------------------------------------------------------------------+
@@ -1679,7 +2038,21 @@ public:
       case MA_DECEMA:       return "DECEMA";
       case MA_MODULAR:      return "Modular";
 
+      // Advanced Filters
+      case MA_KALMAN:       return "Kalman";
+      case MA_SAVGOL:       return "SavGol";
+      case MA_HANN:         return "Hann";
+      case MA_HAMMING:      return "Hamming";
+      case MA_BLACKMAN:     return "Blackman";
+      case MA_BANDPASS:     return "Bandpass";
+      case MA_HIGHPASS:     return "Highpass";
+      case MA_RMEDIAN:      return "RMedian";
+      case MA_VMA:          return "VMA";
+
       default:              return "Unknown";
     }
   }
 };
+
+// Static constant initialization
+const double MovingAverages::PI = 3.14159265358979;
