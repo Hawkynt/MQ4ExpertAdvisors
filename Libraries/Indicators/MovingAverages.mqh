@@ -2,7 +2,7 @@
 //|                                              MovingAverages.mqh  |
 //|                                          Copyright 2026, Hawkynt |
 //|                                                                  |
-//| Comprehensive Moving Average library implementing 77 MA types    |
+//| Comprehensive Moving Average library implementing 82 MA types    |
 //| without relying on built-in iMA/iEMA functions                   |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2026, Hawkynt"
@@ -113,7 +113,14 @@ enum ENUM_MA_TYPE {
   // === Time/Displacement Based ===
   MA_DMA,           // Displaced Moving Average
   MA_TSF,           // Time Series Forecast
-  MA_TRAMA          // Trend Regularity Adaptive MA
+  MA_TRAMA,         // Trend Regularity Adaptive MA
+
+  // === Recent Innovations (2022-2024) ===
+  MA_USHMA,         // Undersampled Hann MA (Ehlers 2023)
+  MA_PRECISION,     // Ehlers Precision Trend (2024)
+  MA_MLMA,          // Machine Learning MA (LuxAlgo)
+  MA_SIGNALMA,      // Signal MA (LuxAlgo)
+  MA_MACONV         // Moving Average Converging (LuxAlgo)
 };
 
 //+------------------------------------------------------------------+
@@ -241,6 +248,13 @@ public:
       case MA_DMA:          return DMA(symbol, timeframe, period, shift, priceType, (int)(optParam1 != 0 ? optParam1 : 5));
       case MA_TSF:          return TSF(symbol, timeframe, period, shift, priceType);
       case MA_TRAMA:        return TRAMA(symbol, timeframe, period, shift, priceType);
+
+      // Recent Innovations (2022-2024)
+      case MA_USHMA:        return UndersampledHannMA(symbol, timeframe, period, shift, priceType, (int)(optParam1 > 0 ? optParam1 : 4));
+      case MA_PRECISION:    return PrecisionTrend(symbol, timeframe, period, shift, priceType, (int)(optParam1 > 0 ? optParam1 : 40), (int)(optParam2 > 0 ? optParam2 : 250));
+      case MA_MLMA:         return MachineLearningMA(symbol, timeframe, period, shift, priceType, optParam1 > 0 ? optParam1 : 2, (int)(optParam2 > 0 ? optParam2 : 1));
+      case MA_SIGNALMA:     return SignalMA(symbol, timeframe, period, shift, priceType);
+      case MA_MACONV:       return MAConverging(symbol, timeframe, period, shift, priceType);
 
       default:              return SMA(symbol, timeframe, period, shift, priceType);
     }
@@ -2582,6 +2596,183 @@ public:
   }
 
   //+------------------------------------------------------------------+
+  //| UndersampledHannMA - Ehlers Undersampled Hann Moving Average      |
+  //| Formula: Undersampling with Hann windowed FIR filter              |
+  //| Reference: John F. Ehlers, "Just Ignore Them"
+  //|            Technical Analysis of Stocks & Commodities (Apr 2023)
+  //|            Undersampling + Hann windowing for lag reduction
+  //|            https://www.mesasoftware.com/TechnicalArticles.htm
+  //+------------------------------------------------------------------+
+  static double UndersampledHannMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const int undersample = 4) {
+    if (period <= 1 || undersample <= 0) return GetPrice(symbol, timeframe, priceType, shift);
+
+    int effectivePeriod = period / undersample;
+    if (effectivePeriod < 2) effectivePeriod = 2;
+
+    double sumWeight = 0;
+    double sumWeightedPrice = 0;
+
+    for (int i = 0; i < effectivePeriod; ++i) {
+      int idx = i * undersample;  // Undersample: skip bars
+      double price = GetPrice(symbol, timeframe, priceType, shift + idx);
+
+      // Hann window weight
+      double weight = 0.5 * (1 - MathCos(2 * PI * i / (effectivePeriod - 1)));
+
+      sumWeightedPrice += weight * price;
+      sumWeight += weight;
+    }
+
+    return (sumWeight > 0) ? sumWeightedPrice / sumWeight : 0;
+  }
+
+  //+------------------------------------------------------------------+
+  //| PrecisionTrend - Ehlers Precision Trend Indicator                 |
+  //| Formula: Dual highpass filter difference for trend isolation      |
+  //| Reference: John F. Ehlers, "Precision Trend Analysis"
+  //|            Technical Analysis of Stocks & Commodities (Sep 2024)
+  //|            Combines two highpass filters to isolate trend
+  //|            https://www.mesasoftware.com/TechnicalArticles.htm
+  //+------------------------------------------------------------------+
+  static double PrecisionTrend(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const int shortPeriod = 40, const int longPeriod = 250) {
+    if (period <= 0) return GetPrice(symbol, timeframe, priceType, shift);
+
+    int bars = iBars(symbol, timeframe);
+    int lookback = MathMin(bars - shift - 1, longPeriod * 2);
+
+    // First highpass filter (short period - removes very long cycles)
+    double alpha1 = (1 - MathSin(2 * PI / shortPeriod)) / MathCos(2 * PI / shortPeriod);
+    // Second highpass filter (long period - removes shorter cycles)
+    double alpha2 = (1 - MathSin(2 * PI / longPeriod)) / MathCos(2 * PI / longPeriod);
+
+    double hp1_0 = 0, hp1_1 = 0;
+    double hp2_0 = 0, hp2_1 = 0;
+    double price0 = 0, price1 = 0;
+
+    for (int i = lookback; i >= 0; --i) {
+      price1 = price0;
+      price0 = GetPrice(symbol, timeframe, priceType, shift + i);
+
+      // Highpass filter 1 (shorter critical period)
+      hp1_1 = hp1_0;
+      hp1_0 = 0.5 * (1 + alpha1) * (price0 - price1) + alpha1 * hp1_1;
+
+      // Highpass filter 2 (longer critical period)
+      hp2_1 = hp2_0;
+      hp2_0 = 0.5 * (1 + alpha2) * (price0 - price1) + alpha2 * hp2_1;
+    }
+
+    // Precision trend = difference between highpass filters
+    // This preserves cycles between shortPeriod and longPeriod
+    return hp2_0 - hp1_0 + GetPrice(symbol, timeframe, priceType, shift);
+  }
+
+  //+------------------------------------------------------------------+
+  //| MachineLearningMA - Machine Learning Moving Average (MLMA)        |
+  //| Formula: Gaussian Process Regression weighted average             |
+  //| Reference: LuxAlgo, "Machine Learning Moving Average"
+  //|            Uses Gaussian kernel weights from GP regression
+  //|            https://www.luxalgo.com/library/indicator/machine-learning-moving-average/
+  //+------------------------------------------------------------------+
+  static double MachineLearningMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE, const double sigma = 2, const int forecast = 1) {
+    if (period <= 1) return GetPrice(symbol, timeframe, priceType, shift);
+
+    double sumWeight = 0;
+    double sumWeightedPrice = 0;
+
+    // Gaussian Process Regression uses Gaussian kernel for weighting
+    // K(x, x') = exp(-||x - x'||^2 / (2 * sigma^2))
+    for (int i = 0; i < period; ++i) {
+      double price = GetPrice(symbol, timeframe, priceType, shift + i);
+
+      // Distance from current point (adjusted by forecast)
+      double distance = (double)(i - forecast);
+
+      // Gaussian kernel weight
+      double weight = MathExp(-(distance * distance) / (2 * sigma * sigma));
+
+      sumWeightedPrice += weight * price;
+      sumWeight += weight;
+    }
+
+    return (sumWeight > 0) ? sumWeightedPrice / sumWeight : 0;
+  }
+
+  //+------------------------------------------------------------------+
+  //| SignalMA - Signal Moving Average                                  |
+  //| Formula: Diverges in ranging markets, follows in trends           |
+  //| Reference: LuxAlgo, "Signal Moving Average"
+  //|            Designed for signal line use in crossover systems
+  //|            https://www.luxalgo.com/library/indicator/signal-moving-average/
+  //+------------------------------------------------------------------+
+  static double SignalMA(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
+    if (period <= 1) return GetPrice(symbol, timeframe, priceType, shift);
+
+    double price = GetPrice(symbol, timeframe, priceType, shift);
+
+    // Calculate trend strength using price efficiency
+    double change = MathAbs(price - GetPrice(symbol, timeframe, priceType, shift + period));
+    double sumVolatility = 0;
+    for (int i = 0; i < period; ++i)
+      sumVolatility += MathAbs(GetPrice(symbol, timeframe, priceType, shift + i) - GetPrice(symbol, timeframe, priceType, shift + i + 1));
+
+    double efficiency = (sumVolatility > 0) ? change / sumVolatility : 0;
+
+    // In trending markets (high efficiency), follow price closely
+    // In ranging markets (low efficiency), diverge from price
+    double fastAlpha = 2.0 / (period / 2 + 1);
+    double slowAlpha = 2.0 / (period * 2 + 1);
+    double adaptiveAlpha = efficiency * fastAlpha + (1 - efficiency) * slowAlpha;
+
+    // Get previous signal MA approximation
+    double prevSignal = EMA(symbol, timeframe, period, shift + 1, priceType);
+
+    return adaptiveAlpha * price + (1 - adaptiveAlpha) * prevSignal;
+  }
+
+  //+------------------------------------------------------------------+
+  //| MAConverging - Moving Average Converging                          |
+  //| Formula: Converges toward price on HH/LL confirmation             |
+  //| Reference: LuxAlgo, "Moving Average Converging"
+  //|            Converges faster when trend makes new HH or LL
+  //|            https://www.tradingview.com/script/srkcHQMv-Moving-Average-Converging-LuxAlgo/
+  //+------------------------------------------------------------------+
+  static double MAConverging(const string symbol, const int timeframe, const int period, const int shift, const int priceType = PRICE_CLOSE) {
+    if (period <= 1) return GetPrice(symbol, timeframe, priceType, shift);
+
+    double price = GetPrice(symbol, timeframe, priceType, shift);
+    double high = iHigh(symbol, timeframe, shift);
+    double low = iLow(symbol, timeframe, shift);
+
+    // Check for new highest high or lowest low
+    bool isHH = true, isLL = true;
+    for (int i = 1; i < period; ++i) {
+      if (iHigh(symbol, timeframe, shift + i) >= high) isHH = false;
+      if (iLow(symbol, timeframe, shift + i) <= low) isLL = false;
+    }
+
+    // Detect trend direction based on recent closes
+    double closeNow = iClose(symbol, timeframe, shift);
+    double closePrev = iClose(symbol, timeframe, shift + period / 2);
+    bool uptrend = closeNow > closePrev;
+    bool downtrend = closeNow < closePrev;
+
+    // Convergence factor: faster when HH in uptrend or LL in downtrend
+    double convergeFactor = 1.0;
+    if ((uptrend && isHH) || (downtrend && isLL))
+      convergeFactor = 2.0;  // Double convergence speed on trend confirmation
+
+    double baseAlpha = 2.0 / (period + 1);
+    double alpha = MathMin(1.0, baseAlpha * convergeFactor);
+
+    // Get base MA
+    double baseMa = EMA(symbol, timeframe, period, shift, priceType);
+
+    // Converge toward price
+    return baseMa + alpha * (price - baseMa);
+  }
+
+  //+------------------------------------------------------------------+
   //| Get MA type name as string                                       |
   //+------------------------------------------------------------------+
   static string GetTypeName(ENUM_MA_TYPE maType) {
@@ -2688,6 +2879,13 @@ public:
       case MA_DMA:          return "DMA";
       case MA_TSF:          return "TSF";
       case MA_TRAMA:        return "TRAMA";
+
+      // Recent Innovations (2022-2024)
+      case MA_USHMA:        return "USHMA";
+      case MA_PRECISION:    return "Precision";
+      case MA_MLMA:         return "MLMA";
+      case MA_SIGNALMA:     return "SignalMA";
+      case MA_MACONV:       return "MAConv";
 
       default:              return "Unknown";
     }
