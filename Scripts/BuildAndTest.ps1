@@ -407,125 +407,76 @@ if (-not $NoLaunch) {
 
         # Wait for MT4 to close while watching for new reports
         Write-Header "WAITING FOR MT4"
-        Write-Status "Waiting for MetaTrader 4 to close..."
         Write-Status "Watching for new reports in $ReportsDir" "INFO"
 
-        # Set up FileSystemWatcher to analyze reports in real-time
         $analyzerScript = Join-Path $ScriptDir "AnalyzeReport.ps1"
-        $analyzedReports = [System.Collections.Generic.HashSet[string]]::new()
-        $watcher = $null
+        $hasAnalyzer = Test-Path $analyzerScript
 
-        if (Test-Path $analyzerScript) {
-            $watcher = [System.IO.FileSystemWatcher]::new()
-            $watcher.Path = $ReportsDir
-            $watcher.Filter = "*.htm"
-            $watcher.NotifyFilter = [System.IO.NotifyFilters]::FileName -bor [System.IO.NotifyFilters]::LastWrite
-            $watcher.EnableRaisingEvents = $true
+        # Helper function to check if report was already analyzed (checks file content for marker)
+        function Test-AlreadyAnalyzed($reportPath) {
+            $baseName = [System.IO.Path]::GetFileNameWithoutExtension($reportPath)
+            $dir = [System.IO.Path]::GetDirectoryName($reportPath)
+            $enhancedPath = Join-Path $dir "${baseName}_Enhanced.html"
+            if (-not (Test-Path $enhancedPath)) { return $false }
+            # Check for generator meta tag in enhanced report
+            $content = Get-Content -Path $enhancedPath -TotalCount 10 -ErrorAction SilentlyContinue
+            return ($content -join '') -match 'MQ4-Report-Analyzer'
+        }
 
-            # Event handler for new/changed files
-            $action = {
-                $path = $Event.SourceEventArgs.FullPath
-                $name = $Event.SourceEventArgs.Name
-                $changeType = $Event.SourceEventArgs.ChangeType
-                $analyzer = $Event.MessageData.Analyzer
-                $outputDir = $Event.MessageData.OutputDir
-                $analyzed = $Event.MessageData.Analyzed
+        # Helper function to analyze and cleanup a report
+        function Invoke-AnalyzeReport($reportPath) {
+            $name = [System.IO.Path]::GetFileName($reportPath)
+            $baseName = [System.IO.Path]::GetFileNameWithoutExtension($reportPath)
+            $dir = [System.IO.Path]::GetDirectoryName($reportPath)
 
-                # Skip if already analyzed or if it's an _Enhanced.html file
-                if ($name -match '_Enhanced\.html?$') { return }
-                if ($analyzed.Contains($path)) { return }
+            Write-Host ""
+            Write-Host "[WATCHER] New report: $name" -ForegroundColor Green
 
-                # Wait a moment for file to be fully written
-                Start-Sleep -Milliseconds 500
-
-                # Check if file exists and is readable
-                if (-not (Test-Path $path)) { return }
-
-                Write-Host ""
-                Write-Host "[WATCHER] New report detected: $name" -ForegroundColor Green
-                Write-Host "[WATCHER] Analyzing immediately..." -ForegroundColor Cyan
-
+            if ($script:hasAnalyzer) {
+                Write-Host "[WATCHER] Analyzing..." -ForegroundColor Cyan
                 try {
-                    & $analyzer -ReportPath $path -OutputDir $outputDir
-                    [void]$analyzed.Add($path)
-                    Write-Host "[WATCHER] Analysis complete. Continue testing or close MT4." -ForegroundColor Green
-                    Write-Host ""
+                    & $script:analyzerScript -ReportPath $reportPath -OutputDir $dir
+                    Remove-Item -Path $reportPath -Force -ErrorAction SilentlyContinue
+                    Remove-Item -Path (Join-Path $dir "$baseName.gif") -Force -ErrorAction SilentlyContinue
+                    Write-Host "[WATCHER] Done. Continue testing or close MT4." -ForegroundColor Green
                 } catch {
                     Write-Host "[WATCHER] Analysis failed: $_" -ForegroundColor Red
                 }
-            }
-
-            $messageData = @{
-                Analyzer = $analyzerScript
-                OutputDir = $ReportsDir
-                Analyzed = $analyzedReports
-            }
-
-            Register-ObjectEvent -InputObject $watcher -EventName "Created" -Action $action -MessageData $messageData | Out-Null
-            Register-ObjectEvent -InputObject $watcher -EventName "Changed" -Action $action -MessageData $messageData | Out-Null
-
-            Write-Status "Report watcher active - reports will be analyzed automatically" "SUCCESS"
-        }
-
-        # Find terminal.exe process (may be different from start.bat)
-        Start-Sleep -Seconds 3
-        $terminalProcess = Get-Process -Name "terminal" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($terminalProcess) {
-            $terminalProcess.WaitForExit()
-        } else {
-            # Fallback: wait for any terminal.exe to appear and then close
-            $maxWait = 300  # 5 minutes max wait for MT4 to start
-            $waited = 0
-            while ($waited -lt $maxWait) {
-                $terminalProcess = Get-Process -Name "terminal" -ErrorAction SilentlyContinue | Select-Object -First 1
-                if ($terminalProcess) {
-                    Write-Status "Found MT4 process, waiting for it to close..."
-                    $terminalProcess.WaitForExit()
-                    break
-                }
-                Start-Sleep -Seconds 1
-                $waited++
-            }
-        }
-
-        # Clean up watcher
-        if ($watcher) {
-            Get-EventSubscriber | Where-Object { $_.SourceObject -eq $watcher } | Unregister-Event
-            $watcher.Dispose()
-            Write-Status "Report watcher stopped" "INFO"
-        }
-
-        Write-Status "MT4 closed" "SUCCESS"
-
-        # Step 7: Find and analyze any remaining reports
-        Write-Header "STEP 7: ANALYZE REPORT"
-
-        # Look for newest .htm file in TestReports that wasn't already analyzed
-        $reports = Get-ChildItem -Path $ReportsDir -Filter "*.htm" -ErrorAction SilentlyContinue |
-                   Where-Object { $_.Name -notmatch '_Enhanced\.html?$' } |
-                   Sort-Object LastWriteTime -Descending
-
-        if ($reports -and $reports.Count -gt 0) {
-            $latestReport = $reports[0].FullName
-
-            # Skip if already analyzed by watcher
-            if ($analyzedReports.Contains($latestReport)) {
-                Write-Status "Latest report already analyzed: $($reports[0].Name)" "SUCCESS"
             } else {
-                Write-Status "Found report: $($reports[0].Name)" "SUCCESS"
-
-                # Run the analyzer script
-                if (Test-Path $analyzerScript) {
-                    Write-Status "Analyzing report..."
-                    & $analyzerScript -ReportPath $latestReport -OutputDir $ReportsDir
-                } else {
-                    Write-Status "Analyzer script not found: $analyzerScript" "WARN"
-                    Write-Status "Report saved at: $latestReport" "INFO"
-                }
+                Write-Host "[WATCHER] No analyzer available" -ForegroundColor Yellow
             }
+            Write-Host ""
+        }
+
+        # Polling loop: watch for reports until MT4 closes
+        $reportsAnalyzed = 0
+        while ($true) {
+            # Check for unanalyzed .htm reports (content-based check)
+            $reports = Get-ChildItem -Path $ReportsDir -Filter "*.htm" -ErrorAction SilentlyContinue |
+                       Where-Object { -not (Test-AlreadyAnalyzed $_.FullName) }
+
+            foreach ($report in $reports) {
+                Invoke-AnalyzeReport $report.FullName
+                $reportsAnalyzed++
+            }
+
+            # Check if MT4 is still running
+            $terminalProcess = Get-Process -Name "terminal" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $terminalProcess) {
+                Write-Host ""
+                Write-Status "MT4 closed" "SUCCESS"
+                break
+            }
+
+            Start-Sleep -Seconds 2
+        }
+
+        # Final summary
+        Write-Header "COMPLETE"
+        if ($reportsAnalyzed -gt 0) {
+            Write-Status "Reports analyzed: $reportsAnalyzed" "SUCCESS"
         } else {
-            Write-Status "No report found in $ReportsDir" "WARN"
-            Write-Status "Did you save the report from MT4?" "WARN"
+            Write-Status "No reports were saved" "WARN"
         }
     } else {
         Write-Status "MT4 terminal not found: $MT4Terminal" "ERROR"
