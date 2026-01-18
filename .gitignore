@@ -13,3 +13,4 @@ test.log
 
 # IDE files
 *.mproj
+/CLAUDE.md

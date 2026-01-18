@@ -48,10 +48,10 @@ $ExpertsDir = Join-Path $ProjectRoot "Experts"
 $ConfigFile = Join-Path $ScriptDir "BuildAndTest.ini"
 $ReportsDir = Join-Path $ProjectRoot "TestReports"
 
-# Period mapping (name to MT4 period code)
+# Period mapping (name to MT4 period value in minutes)
 $PeriodMap = @{
-    "M1" = 1; "M5" = 2; "M15" = 3; "M30" = 4
-    "H1" = 5; "H4" = 6; "D1" = 7; "W1" = 8; "MN" = 9
+    "M1" = 1; "M5" = 5; "M15" = 15; "M30" = 30
+    "H1" = 60; "H4" = 240; "D1" = 1440; "W1" = 10080; "MN" = 43200
 }
 
 function Write-Header {
@@ -372,12 +372,71 @@ if (-not $NoLaunch) {
         Write-Host "  3. Click 'Start' to run the backtest" -ForegroundColor White
         Write-Host "  4. When done, right-click results -> 'Save as Report'" -ForegroundColor White
         Write-Host "     Save to: $ReportsDir" -ForegroundColor Cyan
-        Write-Host "  5. Close MT4 when finished" -ForegroundColor White
+        Write-Host "     (Reports are analyzed automatically when saved!)" -ForegroundColor Green
+        Write-Host "  5. Close MT4 when finished, or save more reports" -ForegroundColor White
         Write-Host ""
 
-        # Wait for MT4 to close
+        # Wait for MT4 to close while watching for new reports
         Write-Header "WAITING FOR MT4"
         Write-Status "Waiting for MetaTrader 4 to close..."
+        Write-Status "Watching for new reports in $ReportsDir" "INFO"
+
+        # Set up FileSystemWatcher to analyze reports in real-time
+        $analyzerScript = Join-Path $ScriptDir "AnalyzeReport.ps1"
+        $analyzedReports = [System.Collections.Generic.HashSet[string]]::new()
+        $watcher = $null
+
+        if (Test-Path $analyzerScript) {
+            $watcher = [System.IO.FileSystemWatcher]::new()
+            $watcher.Path = $ReportsDir
+            $watcher.Filter = "*.htm"
+            $watcher.NotifyFilter = [System.IO.NotifyFilters]::FileName -bor [System.IO.NotifyFilters]::LastWrite
+            $watcher.EnableRaisingEvents = $true
+
+            # Event handler for new/changed files
+            $action = {
+                $path = $Event.SourceEventArgs.FullPath
+                $name = $Event.SourceEventArgs.Name
+                $changeType = $Event.SourceEventArgs.ChangeType
+                $analyzer = $Event.MessageData.Analyzer
+                $outputDir = $Event.MessageData.OutputDir
+                $analyzed = $Event.MessageData.Analyzed
+
+                # Skip if already analyzed or if it's an _Enhanced.html file
+                if ($name -match '_Enhanced\.html?$') { return }
+                if ($analyzed.Contains($path)) { return }
+
+                # Wait a moment for file to be fully written
+                Start-Sleep -Milliseconds 500
+
+                # Check if file exists and is readable
+                if (-not (Test-Path $path)) { return }
+
+                Write-Host ""
+                Write-Host "[WATCHER] New report detected: $name" -ForegroundColor Green
+                Write-Host "[WATCHER] Analyzing immediately..." -ForegroundColor Cyan
+
+                try {
+                    & $analyzer -ReportPath $path -OutputDir $outputDir
+                    [void]$analyzed.Add($path)
+                    Write-Host "[WATCHER] Analysis complete. Continue testing or close MT4." -ForegroundColor Green
+                    Write-Host ""
+                } catch {
+                    Write-Host "[WATCHER] Analysis failed: $_" -ForegroundColor Red
+                }
+            }
+
+            $messageData = @{
+                Analyzer = $analyzerScript
+                OutputDir = $ReportsDir
+                Analyzed = $analyzedReports
+            }
+
+            Register-ObjectEvent -InputObject $watcher -EventName "Created" -Action $action -MessageData $messageData | Out-Null
+            Register-ObjectEvent -InputObject $watcher -EventName "Changed" -Action $action -MessageData $messageData | Out-Null
+
+            Write-Status "Report watcher active - reports will be analyzed automatically" "SUCCESS"
+        }
 
         # Find terminal.exe process (may be different from start.bat)
         Start-Sleep -Seconds 3
@@ -399,27 +458,41 @@ if (-not $NoLaunch) {
                 $waited++
             }
         }
+
+        # Clean up watcher
+        if ($watcher) {
+            Get-EventSubscriber | Where-Object { $_.SourceObject -eq $watcher } | Unregister-Event
+            $watcher.Dispose()
+            Write-Status "Report watcher stopped" "INFO"
+        }
+
         Write-Status "MT4 closed" "SUCCESS"
 
-        # Step 7: Find and analyze report
+        # Step 7: Find and analyze any remaining reports
         Write-Header "STEP 7: ANALYZE REPORT"
 
-        # Look for newest .htm file in TestReports
+        # Look for newest .htm file in TestReports that wasn't already analyzed
         $reports = Get-ChildItem -Path $ReportsDir -Filter "*.htm" -ErrorAction SilentlyContinue |
+                   Where-Object { $_.Name -notmatch '_Enhanced\.html?$' } |
                    Sort-Object LastWriteTime -Descending
 
         if ($reports -and $reports.Count -gt 0) {
             $latestReport = $reports[0].FullName
-            Write-Status "Found report: $($reports[0].Name)" "SUCCESS"
 
-            # Run the analyzer script
-            $analyzerScript = Join-Path $ScriptDir "AnalyzeReport.ps1"
-            if (Test-Path $analyzerScript) {
-                Write-Status "Analyzing report..."
-                & $analyzerScript -ReportPath $latestReport -OutputDir $ReportsDir
+            # Skip if already analyzed by watcher
+            if ($analyzedReports.Contains($latestReport)) {
+                Write-Status "Latest report already analyzed: $($reports[0].Name)" "SUCCESS"
             } else {
-                Write-Status "Analyzer script not found: $analyzerScript" "WARN"
-                Write-Status "Report saved at: $latestReport" "INFO"
+                Write-Status "Found report: $($reports[0].Name)" "SUCCESS"
+
+                # Run the analyzer script
+                if (Test-Path $analyzerScript) {
+                    Write-Status "Analyzing report..."
+                    & $analyzerScript -ReportPath $latestReport -OutputDir $ReportsDir
+                } else {
+                    Write-Status "Analyzer script not found: $analyzerScript" "WARN"
+                    Write-Status "Report saved at: $latestReport" "INFO"
+                }
             }
         } else {
             Write-Status "No report found in $ReportsDir" "WARN"

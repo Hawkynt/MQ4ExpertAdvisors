@@ -9,6 +9,7 @@
         .container { max-width: 1200px; margin: 0 auto; }
         h1 { color: #4CAF50; margin-bottom: 10px; }
         h2 { color: #2196F3; margin: 20px 0 10px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        h2[data-tip] { cursor: help; }
         .header { text-align: center; margin-bottom: 30px; }
         .subtitle { color: #888; font-size: 14px; }
         .test-info { background: #1a1a2e; border-radius: 8px; padding: 15px; margin: 15px 0; border: 1px solid #333; }
@@ -37,6 +38,24 @@
         tr:hover { background: #252540; }
         .stats-table td:first-child { color: #888; }
         .stats-table td:nth-child(2), .stats-table td:nth-child(4) { font-weight: bold; }
+        .params-table { background: #1a1a2e; border-radius: 8px; padding: 15px; margin: 15px 0; border: 1px solid #333; max-height: 300px; overflow-y: auto; }
+        .params-table table { width: 100%; }
+        .params-table td:first-child { color: #888; width: 40%; }
+        .params-table td:nth-child(2) { color: #fff; font-family: 'Consolas', monospace; }
+        .meta-value.quality-bad { color: #FA8072; }
+        .meta-value.quality-meh { color: #FFD700; }
+        .meta-value.quality-good { color: #90EE90; }
+        .meta-value.quality-perfect { color: #1E90FF; }
+        .meta-value.model-best { color: #90EE90; }
+        .meta-value.model-good { color: #FFD700; }
+        .meta-value.model-fast { color: #FA8072; }
+        #chart-tip { position: fixed; background: #252540; color: #e0e0e0; padding: 8px 12px; border-radius: 4px; font-size: 12px; pointer-events: none; z-index: 1000; border: 1px solid #444; box-shadow: 0 2px 8px rgba(0,0,0,0.5); white-space: pre-line; display: none; }
+        .meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 15px 0; }
+        .meta-card { background: #1a1a2e; border-radius: 8px; padding: 12px; border: 1px solid #333; }
+        .meta-card:hover { border-color: #555; }
+        .meta-label { color: #666; font-size: 10px; text-transform: uppercase; margin-bottom: 4px; }
+        .meta-value { font-size: 14px; font-weight: bold; color: #e0e0e0; }
+        .meta-sub { font-size: 10px; color: #555; margin-top: 2px; }
         .footer { text-align: center; margin-top: 30px; color: #555; font-size: 12px; }
         .order-book, .order-events { background: #1a1a2e; border-radius: 8px; padding: 10px; margin: 20px 0; max-height: 400px; overflow-y: auto; border: 1px solid #333; }
         .order-book::-webkit-scrollbar, .order-events::-webkit-scrollbar { width: 8px; }
@@ -68,33 +87,51 @@
     </style>
 </head>
 <body>
+    <div id="chart-tip"></div>
     <div class="container">
         <div class="header">
             <h1>Enhanced Strategy Report</h1>
             <div class="subtitle" id="subtitle"></div>
         </div>
-        <div class="test-info" id="test-info"></div>
-        <h2>Performance Summary</h2>
+        <h2 data-tip="Test scenario configuration: symbol, timeframe, model quality, and backtest parameters.">Scenario</h2>
+        <div class="meta-grid" id="meta-cards"></div>
+        <h2 data-tip="Expert Advisor input parameters used during the backtest.">Parameters</h2>
+        <div class="params-table" id="params-table"></div>
+        <h2 data-tip="Key performance indicators: net profit, profit factor, win rate, and maximum drawdown.">Performance Summary</h2>
         <div class="grid" id="perf-cards"></div>
         <div class="grid" id="pos-cards"></div>
-        <h2>Advanced Metrics</h2>
+        <h2 data-tip="Risk-adjusted metrics: Sharpe ratio measures return per unit of risk, Sortino focuses on downside risk, Recovery factor shows profit relative to drawdown, Z-Score tests if wins/losses are random.">Advanced Metrics</h2>
         <div class="grid" id="adv-cards-1"></div>
         <div class="grid" id="adv-cards-2"></div>
-        <h2>Equity & Balance Curve</h2>
+        <h2 data-tip="Account balance and equity over time. Balance changes only on trade close, equity fluctuates with open positions. Volume bars show lot sizes traded.">Equity & Balance Curve</h2>
         <div class="chart-container" id="equity-chart"></div>
-        <h2>Drawdown</h2>
+        <h2 data-tip="Percentage decline from peak equity. Shows how much the account dropped from its highest point at any given time. Lower and shorter drawdowns indicate better risk management.">Drawdown</h2>
         <div class="chart-container" id="dd-chart"></div>
-        <h2>Profit Distribution</h2>
+        <h2 data-tip="Profit/loss of each trade plotted in sequence. Shows consistency and identifies periods of gains or losses. Look for patterns or regime changes.">Profit Distribution</h2>
         <div class="chart-container" id="profit-chart"></div>
-        <h2>Trade Distribution by Time</h2>
+        <h2 data-tip="Histogram of trade returns showing frequency distribution. Displays how profits and losses are distributed, with mean, median, and standard deviation statistics.">Return Distribution</h2>
+        <div class="chart-container"><div class="chart-grid" id="return-dist"></div></div>
+        <h2 data-tip="Breakdown of how trades were closed: Stop Loss (hit SL level), Take Profit (hit TP level), or Manual (closed by EA logic or user). Shows average P/L for each exit type.">Trade Exit Analysis</h2>
+        <div class="chart-container"><div class="chart-grid" id="exit-analysis"></div></div>
+        <h2 data-tip="Performance metrics calculated over a rolling window of recent trades. Helps identify if strategy performance is consistent, improving, or degrading over time.">Rolling Performance</h2>
+        <div class="chart-container" id="rolling-perf"></div>
+        <h2 data-tip="Visualization of consecutive winning and losing streaks. Green bars above zero show win streaks, red bars below show loss streaks. Height indicates streak length.">Win/Loss Streaks</h2>
+        <div class="chart-container" id="streaks-chart"></div>
+        <h2 data-tip="Analysis of performance by position size. Shows if larger or smaller lot sizes perform differently, helping optimize position sizing strategy.">Lot Size Analysis</h2>
+        <div class="chart-container"><div class="chart-grid" id="lot-analysis"></div></div>
+        <h2 data-tip="Profit breakdown by calendar month with win rate. Heat-colored table shows profitable (green) and losing (red) months. Cumulative chart shows equity growth over time.">Monthly Returns</h2>
+        <div class="chart-container" id="monthly-returns"></div>
+        <h2 data-tip="Analysis of how long trades are held open. Shows distribution across time ranges and whether holding time affects profitability.">Trade Duration</h2>
+        <div class="chart-container"><div class="chart-grid" id="duration-charts"></div></div>
+        <h2 data-tip="Trading activity patterns by hour, weekday, and month. Identifies when the strategy trades most frequently and which time periods are most profitable.">Trade Distribution by Time</h2>
         <div class="chart-container"><div class="chart-grid" id="dist-charts"></div></div>
-        <h2>MFE / MAE Analysis</h2>
+        <h2 data-tip="Maximum Favorable Excursion (MFE) shows how much profit a trade reached before closing. Maximum Adverse Excursion (MAE) shows how much a trade went against you. Helps optimize stop-loss and take-profit levels.">MFE / MAE Analysis</h2>
         <div class="chart-container" id="mfe-mae"></div>
-        <h2>Trade Statistics</h2>
+        <h2 data-tip="Comprehensive table of all trading statistics including win/loss counts, averages, consecutive trade streaks, and drawdown figures.">Trade Statistics</h2>
         <table class="stats-table" id="stats-table"></table>
-        <h2>Order Book (Closed Trades)</h2>
+        <h2 data-tip="List of all closed trades with entry/exit details, profit/loss, and trade duration. Color-coded by exit type and profitability.">Order Book (Closed Trades)</h2>
         <div class="order-book" id="order-book"></div>
-        <h2>All Order Events</h2>
+        <h2 data-tip="Complete log of all order events including opens, modifications, and closes. Shows the full trading activity timeline.">All Order Events</h2>
         <div class="order-events" id="order-events"></div>
         <div class="footer" id="footer"></div>
     </div>
@@ -102,7 +139,24 @@
     <script id="report-data">const RAW=/*{{REPORT_DATA}}*/{};</script>
     <script>
     (function() {
+        const tip = document.getElementById('chart-tip');
+        document.addEventListener('mousemove', e => {
+            if (tip.style.display === 'block') {
+                tip.style.left = (e.clientX + 12) + 'px';
+                tip.style.top = (e.clientY + 12) + 'px';
+            }
+        });
+        document.addEventListener('mouseover', e => {
+            const t = e.target.closest('[data-tip]');
+            if (t) { tip.textContent = t.dataset.tip; tip.style.display = 'block'; }
+        });
+        document.addEventListener('mouseout', e => {
+            if (e.target.closest('[data-tip]')) tip.style.display = 'none';
+        });
+
         const fmt = (n, d=2) => n == null || isNaN(n) ? '-' : n.toLocaleString('en-US', {minimumFractionDigits:d, maximumFractionDigits:d});
+        let CUR = ''; // Global currency unit, set during init
+        const fmtM = (n, d=2) => fmt(n, d) + (CUR ? ' ' + CUR : ''); // Format with currency
         const session = h => h < 8 ? {n:'Asia',c:'session-asia'} : h < 16 ? {n:'Europe',c:'session-europe'} : {n:'USA',c:'session-usa'};
         const parseTime = s => { const m = s.match(/(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})/); return m ? new Date(m[1],m[2]-1,m[3],m[4],m[5]) : null; };
         const volClass = (v, min, max) => { if (max===min) return 'vol-med'; const r=(v-min)/(max-min); return r<.33?'vol-low':r<.66?'vol-med':'vol-high'; };
@@ -110,6 +164,10 @@
         function analyze(raw) {
             const {meta, events} = raw;
             const deposit = meta.deposit || 10000;
+
+            // Extract currency from symbol string like "EURJPY (1 Lot= 100,000 EUR)"
+            const symMatch = (meta.symbol || '').match(/\(1\s*Lot\s*=\s*[\d,.\s]+([A-Za-z]+)\)/i);
+            const currency = symMatch ? symMatch[1].toUpperCase() : '';
 
             // Build order map for entry prices
             const orders = {};
@@ -130,9 +188,19 @@
             const netProfit = grossProfit - grossLoss;
             const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
 
-            // Build equity curve
+            // Build equity and balance curves
+            // Balance = account value after each trade close
+            // Equity = account value before each trade close (balance - profit of that trade)
+            const balance = [deposit];
             const equity = [deposit];
-            closed.forEach(t => { if (t.b > 0) equity.push(t.b); });
+            const volumes = [0];  // lot sizes for volume chart
+            closed.forEach(t => {
+                if (t.b > 0) {
+                    balance.push(t.b);
+                    equity.push(t.b - t.r);  // value before this trade's profit was added
+                    volumes.push(t.v);
+                }
+            });
 
             // Calculate returns
             const returns = [];
@@ -142,11 +210,11 @@
             const variance = returns.length ? returns.reduce((s,r)=>s+Math.pow(r-avgRet,2),0)/returns.length : 0;
             const stdDev = Math.sqrt(variance);
 
-            // Drawdown curve
-            let maxEq = equity[0];
-            const ddCurve = equity.map(eq => { if (eq > maxEq) maxEq = eq; return (maxEq - eq) / maxEq * 100; });
+            // Drawdown curve (based on balance)
+            let maxBal = balance[0];
+            const ddCurve = balance.map(b => { if (b > maxBal) maxBal = b; return (maxBal - b) / maxBal * 100; });
             const maxDD = Math.max(...ddCurve);
-            const maxDDAbs = Math.max(...equity.map((eq,i) => { let m = Math.max(...equity.slice(0,i+1)); return m - eq; }));
+            const maxDDAbs = Math.max(...balance.map((b,i) => { let m = Math.max(...balance.slice(0,i+1)); return m - b; }));
 
             // Sharpe & Sortino
             const sharpe = stdDev > 0 ? avgRet / stdDev : 0;
@@ -206,22 +274,45 @@
             const longWins = longs.filter(t => t.r > 0).length;
             const shortWins = shorts.filter(t => t.r > 0).length;
 
+            // Use MT4 pre-calculated values where available, fall back to calculated
+            const mt4 = meta;
             return {
                 meta, events, closed, orders,
-                deposit, netProfit, grossProfit, grossLoss, profitFactor,
-                totalTrades: closed.length, winCount: wins.length, lossCount: losses.length,
-                winRate: closed.length ? (wins.length / closed.length * 100) : 0,
-                avgWin: wins.length ? wins.reduce((a,b)=>a+b,0)/wins.length : 0,
-                avgLoss: losses.length ? losses.reduce((a,b)=>a+b,0)/losses.length : 0,
-                largestWin: wins.length ? Math.max(...wins) : 0,
-                largestLoss: losses.length ? Math.min(...losses) : 0,
-                equity, ddCurve, maxDD, maxDDAbs,
+                deposit, currency,
+                netProfit: mt4.netProfit ?? netProfit,
+                grossProfit: mt4.grossProfit ?? grossProfit,
+                grossLoss: mt4.grossLoss ?? -grossLoss,
+                profitFactor: mt4.profitFactor ?? profitFactor,
+                totalTrades: mt4.totalTrades ?? closed.length,
+                winCount: mt4.winCount ?? wins.length,
+                lossCount: mt4.lossCount ?? losses.length,
+                winRate: mt4.winRate ?? (closed.length ? (wins.length / closed.length * 100) : 0),
+                avgWin: mt4.avgWin ?? (wins.length ? wins.reduce((a,b)=>a+b,0)/wins.length : 0),
+                avgLoss: mt4.avgLoss ?? (losses.length ? losses.reduce((a,b)=>a+b,0)/losses.length : 0),
+                largestWin: mt4.largestWin ?? (wins.length ? Math.max(...wins) : 0),
+                largestLoss: mt4.largestLoss ?? (losses.length ? Math.min(...losses) : 0),
+                equity, balance, volumes, ddCurve,
+                maxDD: mt4.maxDrawdownPct ?? maxDD,
+                maxDDAbs: mt4.maxDrawdown ?? maxDDAbs,
+                absDrawdown: mt4.absDrawdown ?? (deposit - Math.min(...balance)),
                 sharpe, sortino, recovery, zScore, zProb, ahpr, ghpr, lrCorr, stdDev: stdDev*100,
-                consec,
-                longs: longs.length, shorts: shorts.length,
-                longWinRate: longs.length ? longWins/longs.length*100 : 0,
-                shortWinRate: shorts.length ? shortWins/shorts.length*100 : 0,
-                expectedPayoff: closed.length ? netProfit / closed.length : 0
+                consec: {
+                    wins: mt4.maxConsecWins ?? consec.wins,
+                    losses: mt4.maxConsecLosses ?? consec.losses,
+                    wProfit: mt4.maxConsecWinsProfit ?? consec.wProfit,
+                    lLoss: mt4.maxConsecLossesLoss ?? consec.lLoss,
+                    maxProfit: mt4.maxConsecProfit,
+                    maxProfitCount: mt4.maxConsecProfitCount,
+                    maxLoss: mt4.maxConsecLoss,
+                    maxLossCount: mt4.maxConsecLossCount,
+                    avgWins: mt4.avgConsecWins,
+                    avgLosses: mt4.avgConsecLosses
+                },
+                longs: mt4.longTrades ?? longs.length,
+                shorts: mt4.shortTrades ?? shorts.length,
+                longWinRate: mt4.longWinRate ?? (longs.length ? longWins/longs.length*100 : 0),
+                shortWinRate: mt4.shortWinRate ?? (shorts.length ? shortWins/shorts.length*100 : 0),
+                expectedPayoff: mt4.expectedPayoff ?? (closed.length ? netProfit / closed.length : 0)
             };
         }
 
@@ -230,7 +321,7 @@
         }
 
         function lineChart(data, data2, opt) {
-            const {title='',xLabel='',yLabel='',w=800,h=250,c1='#4CAF50',c2='#2196F3',l1='',l2='',grid=true,zero=false} = opt;
+            const {title='',xLabel='',yLabel='',w=1200,h=250,c1='#4CAF50',c2='#2196F3',l1='',l2='',grid=true,zero=false,gridX=10} = opt;
             if (!data?.length) return '';
             const pl=70,pr=20,pt=40,pb=50,cw=w-pl-pr,ch=h-pt-pb;
             let min=Math.min(...data), max=Math.max(...data);
@@ -239,21 +330,125 @@
             let g='';
             if (grid) {
                 for(let i=0;i<=4;i++){const y=pt+(i/4)*ch,v=max-(i/4)*rng;g+=`<line x1="${pl}" y1="${y}" x2="${w-pr}" y2="${y}" stroke="#2a2a4a"/><text x="${pl-5}" y="${y+4}" text-anchor="end" fill="#666" font-size="9">${v.toFixed(2)}</text>`;}
-                for(let i=0;i<=4;i++){const x=pl+(i/4)*cw,v=Math.round((i/4)*(data.length-1));g+=`<line x1="${x}" y1="${pt}" x2="${x}" y2="${pt+ch}" stroke="#2a2a4a"/><text x="${x}" y="${h-20}" text-anchor="middle" fill="#666" font-size="9">${v}</text>`;}
+                for(let i=0;i<=gridX;i++){const x=pl+(i/gridX)*cw,v=Math.round((i/gridX)*(data.length-1));g+=`<line x1="${x}" y1="${pt}" x2="${x}" y2="${pt+ch}" stroke="#2a2a4a"/>${i%2===0?`<text x="${x}" y="${h-20}" text-anchor="middle" fill="#666" font-size="9">${v}</text>`:''}`;}
             }
             const pts=data.map((v,i)=>`${pl+(i/Math.max(1,data.length-1))*cw},${pt+ch-((v-min)/rng)*ch}`).join(' L ');
             const fill=`M ${pts} L ${pl+cw},${pt+ch} L ${pl},${pt+ch} Z`;
+            // Full-height hover zones
+            let hoverZones='';
+            const zones=Math.min(200,data.length);
+            const zw=cw/zones;
+            for(let i=0;i<zones;i++){
+                const idx=Math.round((i/zones)*(data.length-1));
+                const x=pl+i*zw;
+                let tip=`#${idx}: ${data[idx].toFixed(2)}`;
+                if(data2?.length){const idx2=Math.round((i/zones)*(data2.length-1));tip+=`\n${l2||'Line 2'}: ${data2[idx2].toFixed(2)}`;}
+                hoverZones+=`<rect x="${x}" y="${pt}" width="${zw}" height="${ch}" fill="transparent" data-tip="${tip}"/>`;
+            }
             let p2='';
             if(data2?.length){const pts2=data2.map((v,i)=>`${pl+(i/Math.max(1,data2.length-1))*cw},${pt+ch-((v-min)/rng)*ch}`).join(' L ');p2=`<path d="M ${pts2}" fill="none" stroke="${c2}" stroke-width="2" stroke-dasharray="4"/>`;}
             let zl='';
             if(zero&&min<0&&max>0){const zy=pt+ch-((0-min)/rng)*ch;zl=`<line x1="${pl}" y1="${zy}" x2="${w-pr}" y2="${zy}" stroke="#888" stroke-dasharray="4"/>`;}
             let leg='';
             if(l1||l2){leg=`<rect x="${w-180}" y="10" width="170" height="25" fill="#1a1a2e" stroke="#333" rx="3"/>`;if(l1)leg+=`<line x1="${w-170}" y1="22" x2="${w-150}" y2="22" stroke="${c1}" stroke-width="2"/><text x="${w-145}" y="26" fill="#888" font-size="9">${l1}</text>`;if(l2)leg+=`<line x1="${w-90}" y1="22" x2="${w-70}" y2="22" stroke="${c2}" stroke-width="2" stroke-dasharray="4"/><text x="${w-65}" y="26" fill="#888" font-size="9">${l2}</text>`;}
-            return `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#1a1a2e"/><text x="${w/2}" y="22" text-anchor="middle" fill="#fff" font-size="14">${title}</text>${g}<rect x="${pl}" y="${pt}" width="${cw}" height="${ch}" fill="none" stroke="#444"/><path d="${fill}" fill="${c1}" fill-opacity="0.2"/><path d="M ${pts}" fill="none" stroke="${c1}" stroke-width="2"/>${p2}${zl}${leg}<text x="${w/2}" y="${h-5}" text-anchor="middle" fill="#888" font-size="10">${xLabel}</text><text x="15" y="${pt+ch/2}" text-anchor="middle" fill="#888" font-size="10" transform="rotate(-90 15 ${pt+ch/2})">${yLabel}</text></svg>`;
+            return `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#1a1a2e"/><text x="${w/2}" y="22" text-anchor="middle" fill="#fff" font-size="14">${title}</text>${g}<rect x="${pl}" y="${pt}" width="${cw}" height="${ch}" fill="none" stroke="#444"/><path d="${fill}" fill="${c1}" fill-opacity="0.2"/><path d="M ${pts}" fill="none" stroke="${c1}" stroke-width="2"/>${p2}${zl}${leg}${hoverZones}<text x="${w/2}" y="${h-5}" text-anchor="middle" fill="#888" font-size="10">${xLabel}</text><text x="15" y="${pt+ch/2}" text-anchor="middle" fill="#888" font-size="10" transform="rotate(-90 15 ${pt+ch/2})">${yLabel}</text></svg>`;
+        }
+
+        function equityBalanceVolumeChart(equity, balance, volumes, opt) {
+            const {title='',w=1200,h=320,gridX=10} = opt;
+            if (!equity?.length) return '';
+            const pl=70,pr=20,pt=40,mainH=200,volH=50,gap=10,pb=20;
+            const cw=w-pl-pr;
+
+            // Main chart (equity & balance)
+            let min=Math.min(Math.min(...equity),Math.min(...balance));
+            let max=Math.max(Math.max(...equity),Math.max(...balance));
+            const rng=max-min||1;
+
+            let g='';
+            // Grid lines for main chart
+            for(let i=0;i<=4;i++){
+                const y=pt+(i/4)*mainH,v=max-(i/4)*rng;
+                g+=`<line x1="${pl}" y1="${y}" x2="${w-pr}" y2="${y}" stroke="#2a2a4a"/>`;
+                g+=`<text x="${pl-5}" y="${y+4}" text-anchor="end" fill="#666" font-size="9">${v.toFixed(0)}</text>`;
+            }
+            // Vertical grid (finer)
+            for(let i=0;i<=gridX;i++){
+                const x=pl+(i/gridX)*cw;
+                g+=`<line x1="${x}" y1="${pt}" x2="${x}" y2="${pt+mainH}" stroke="#2a2a4a"/>`;
+            }
+
+            // Balance line (green, solid, with fill) - this is the primary line like MT4
+            const balPts=balance.map((v,i)=>`${pl+(i/Math.max(1,balance.length-1))*cw},${pt+mainH-((v-min)/rng)*mainH}`).join(' L ');
+            const balFill=`M ${balPts} L ${pl+cw},${pt+mainH} L ${pl},${pt+mainH} Z`;
+
+            // Equity line (gray dashed)
+            const eqPts=equity.map((v,i)=>`${pl+(i/Math.max(1,equity.length-1))*cw},${pt+mainH-((v-min)/rng)*mainH}`).join(' L ');
+
+            // Volume chart
+            const volTop = pt + mainH + gap;
+            const maxVol = Math.max(...volumes) || 1;
+            const bw = Math.max(1, cw / volumes.length - 1);
+            let volBars = '';
+            for(let i=0;i<volumes.length;i++){
+                const vh = (volumes[i]/maxVol)*volH;
+                const x = pl + (i/Math.max(1,volumes.length-1))*cw - bw/2;
+                const y = volTop + volH - vh;
+                const color = i > 0 && balance[i] >= balance[i-1] ? '#4CAF50' : '#f44336';
+                volBars += `<rect x="${x}" y="${y}" width="${bw}" height="${vh}" fill="${color}" fill-opacity="0.7"/>`;
+            }
+
+            // Full-height hover zones for both main chart and volume
+            let hoverZones='';
+            const zones=Math.min(200,balance.length);
+            const zw=cw/zones;
+            const totalH=mainH+gap+volH;
+            for(let i=0;i<zones;i++){
+                const idx=Math.round((i/zones)*(balance.length-1));
+                const x=pl+i*zw;
+                const tip=`Trade #${idx}\nBalance: ${fmtM(balance[idx])}\nEquity: ${fmtM(equity[idx])}\nVolume: ${volumes[idx].toFixed(2)} lots`;
+                hoverZones+=`<rect x="${x}" y="${pt}" width="${zw}" height="${totalH}" fill="transparent" data-tip="${tip}"/>`;
+            }
+
+            // Volume y-axis labels
+            const volLabels = `<text x="${pl-5}" y="${volTop+4}" text-anchor="end" fill="#666" font-size="8">${maxVol.toFixed(2)}</text><text x="${pl-5}" y="${volTop+volH}" text-anchor="end" fill="#666" font-size="8">0</text>`;
+
+            // X-axis labels (trade numbers) - show every other for finer grid
+            let xLabels = '';
+            for(let i=0;i<=gridX;i+=2){
+                const x=pl+(i/gridX)*cw,v=Math.round((i/gridX)*(equity.length-1));
+                xLabels+=`<text x="${x}" y="${volTop+volH+15}" text-anchor="middle" fill="#666" font-size="9">${v}</text>`;
+            }
+
+            // Legend
+            const leg=`<rect x="${w-200}" y="10" width="190" height="25" fill="#1a1a2e" stroke="#333" rx="3"/>
+                <line x1="${w-190}" y1="22" x2="${w-170}" y2="22" stroke="#4CAF50" stroke-width="2"/>
+                <text x="${w-165}" y="26" fill="#888" font-size="9">Balance</text>
+                <line x1="${w-110}" y1="22" x2="${w-90}" y2="22" stroke="#888" stroke-width="2" stroke-dasharray="4"/>
+                <text x="${w-85}" y="26" fill="#888" font-size="9">Equity</text>`;
+
+            return `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+                <rect width="100%" height="100%" fill="#1a1a2e"/>
+                <text x="${w/2}" y="22" text-anchor="middle" fill="#fff" font-size="14">${title}</text>
+                ${g}
+                <rect x="${pl}" y="${pt}" width="${cw}" height="${mainH}" fill="none" stroke="#444"/>
+                <path d="${balFill}" fill="#4CAF50" fill-opacity="0.15"/>
+                <path d="M ${balPts}" fill="none" stroke="#4CAF50" stroke-width="2"/>
+                <path d="M ${eqPts}" fill="none" stroke="#888" stroke-width="1.5" stroke-dasharray="4"/>
+                ${leg}
+                <text x="15" y="${pt+mainH/2}" text-anchor="middle" fill="#888" font-size="10" transform="rotate(-90 15 ${pt+mainH/2})">Account Value</text>
+                <rect x="${pl}" y="${volTop}" width="${cw}" height="${volH}" fill="none" stroke="#444"/>
+                ${volBars}
+                ${volLabels}
+                <text x="15" y="${volTop+volH/2}" text-anchor="middle" fill="#666" font-size="8" transform="rotate(-90 15 ${volTop+volH/2})">Volume</text>
+                ${xLabels}
+                <text x="${w/2}" y="${h-3}" text-anchor="middle" fill="#888" font-size="10">Trade #</text>
+                ${hoverZones}
+            </svg>`;
         }
 
         function scatterChart(pts, opt) {
-            const {title='',xLabel='',yLabel='',w=400,h=220,color='#4CAF50'} = opt;
+            const {title='',xLabel='',yLabel='',w=1200,h=220,color='#4CAF50',gridX=10} = opt;
             if (!pts?.length) return '';
             const pl=60,pr=20,pt=35,pb=45,cw=w-pl-pr,ch=h-pt-pb;
             const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
@@ -261,39 +456,57 @@
             const rx=maxX-minX||1,ry=maxY-minY||1;
             let g='';
             for(let i=0;i<=4;i++){const y=pt+(i/4)*ch,v=maxY-(i/4)*ry;g+=`<line x1="${pl}" y1="${y}" x2="${w-pr}" y2="${y}" stroke="#2a2a4a"/><text x="${pl-5}" y="${y+4}" text-anchor="end" fill="#666" font-size="8">${v.toFixed(1)}</text>`;}
-            for(let i=0;i<=4;i++){const x=pl+(i/4)*cw,v=minX+(i/4)*rx;g+=`<line x1="${x}" y1="${pt}" x2="${x}" y2="${pt+ch}" stroke="#2a2a4a"/><text x="${x}" y="${h-18}" text-anchor="middle" fill="#666" font-size="8">${v.toFixed(1)}</text>`;}
+            for(let i=0;i<=gridX;i++){const x=pl+(i/gridX)*cw,v=minX+(i/gridX)*rx;g+=`<line x1="${x}" y1="${pt}" x2="${x}" y2="${pt+ch}" stroke="#2a2a4a"/>${i%2===0?`<text x="${x}" y="${h-18}" text-anchor="middle" fill="#666" font-size="8">${v.toFixed(0)}</text>`:''}`;}
             let dots='';
-            pts.forEach(p=>{const x=pl+((p.x-minX)/rx)*cw,y=pt+ch-((p.y-minY)/ry)*ch;dots+=`<circle cx="${x}" cy="${y}" r="4" fill="${color}" fill-opacity="0.7"><title>${p.label||`${xLabel}:${p.x.toFixed(2)}, ${yLabel}:${p.y.toFixed(2)}`}</title></circle>`;});
+            const dotColor = p => p.y >= 0 ? '#4CAF50' : '#f44336';
+            pts.forEach(p=>{const x=pl+((p.x-minX)/rx)*cw,y=pt+ch-((p.y-minY)/ry)*ch;dots+=`<circle cx="${x}" cy="${y}" r="5" fill="${dotColor(p)}" fill-opacity="0.7"/>`;});
+            // Full-height hover zones - find nearest point for each zone
+            let hoverZones='';
+            const zones=Math.min(200,pts.length);
+            const zw=cw/zones;
+            for(let i=0;i<zones;i++){
+                const zoneX=minX+(i/zones)*rx;
+                const nearest=pts.reduce((best,p)=>Math.abs(p.x-zoneX)<Math.abs(best.x-zoneX)?p:best);
+                const x=pl+i*zw;
+                hoverZones+=`<rect x="${x}" y="${pt}" width="${zw}" height="${ch}" fill="transparent" data-tip="Trade #${nearest.x}\nProfit: ${fmtM(nearest.y)}"/>`;
+            }
             let zl='';if(minY<0&&maxY>0){const zy=pt+ch-((0-minY)/ry)*ch;zl=`<line x1="${pl}" y1="${zy}" x2="${w-pr}" y2="${zy}" stroke="#888" stroke-dasharray="4"/>`;}
-            return `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#1a1a2e"/><text x="${w/2}" y="20" text-anchor="middle" fill="#fff" font-size="12">${title}</text>${g}<rect x="${pl}" y="${pt}" width="${cw}" height="${ch}" fill="none" stroke="#444"/>${zl}${dots}<text x="${w/2}" y="${h-5}" text-anchor="middle" fill="#888" font-size="9">${xLabel}</text><text x="12" y="${pt+ch/2}" text-anchor="middle" fill="#888" font-size="9" transform="rotate(-90 12 ${pt+ch/2})">${yLabel}</text></svg>`;
+            return `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#1a1a2e"/><text x="${w/2}" y="20" text-anchor="middle" fill="#fff" font-size="12">${title}</text>${g}<rect x="${pl}" y="${pt}" width="${cw}" height="${ch}" fill="none" stroke="#444"/>${zl}${dots}${hoverZones}<text x="${w/2}" y="${h-5}" text-anchor="middle" fill="#888" font-size="9">${xLabel}</text><text x="12" y="${pt+ch/2}" text-anchor="middle" fill="#888" font-size="9" transform="rotate(-90 12 ${pt+ch/2})">${yLabel}</text></svg>`;
         }
 
         function barChart(data, labels, opt) {
-            const {title='',xLabel='',yLabel='',w=280,h=180,color='#4CAF50',hourly=false} = opt;
+            const {title='',xLabel='',yLabel='',w=280,h=180,color='#4CAF50',hourly=false,monthly=false} = opt;
             if (!data?.length) return '';
-            const pl=45,pr=15,pt=30,pb=hourly?55:50,cw=w-pl-pr,ch=h-pt-pb;
+            const hasLeg=hourly||monthly;
+            const pl=45,pr=15,pt=30,pb=hasLeg?55:50,cw=w-pl-pr,ch=h-pt-pb;
             const max=Math.max(...data)||1, total=data.reduce((a,b)=>a+b,0)||1;
             const bw=Math.max(4,(cw/data.length)-(hourly?1:2));
             const uid=Math.random().toString(36).substr(2,8);
-            const colors=hourly?['#FFD700','#4CAF50','#f44336']:[color,color,color];
+            // Hourly: Asia(0-7)/Europe(8-15)/USA(16-23), Monthly: Winter(11,0,1)/Spring(2-4)/Summer(5-7)/Autumn(8-10)
+            const hColors=['#FFD700','#4CAF50','#f44336'], mColors=['#00BCD4','#4CAF50','#FFD700','#f44336'];
             let defs=`<defs>`;
-            if(hourly){defs+=`<linearGradient id="g0_${uid}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:${colors[0]};stop-opacity:1"/><stop offset="100%" style="stop-color:${colors[0]};stop-opacity:0.3"/></linearGradient>`;
-            defs+=`<linearGradient id="g1_${uid}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:${colors[1]};stop-opacity:1"/><stop offset="100%" style="stop-color:${colors[1]};stop-opacity:0.3"/></linearGradient>`;
-            defs+=`<linearGradient id="g2_${uid}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:${colors[2]};stop-opacity:1"/><stop offset="100%" style="stop-color:${colors[2]};stop-opacity:0.3"/></linearGradient>`;}
+            if(hourly){for(let c=0;c<3;c++)defs+=`<linearGradient id="g${c}_${uid}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:${hColors[c]};stop-opacity:1"/><stop offset="100%" style="stop-color:${hColors[c]};stop-opacity:0.3"/></linearGradient>`;}
+            else if(monthly){for(let c=0;c<4;c++)defs+=`<linearGradient id="m${c}_${uid}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:${mColors[c]};stop-opacity:1"/><stop offset="100%" style="stop-color:${mColors[c]};stop-opacity:0.3"/></linearGradient>`;}
             else{defs+=`<linearGradient id="g_${uid}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:${color};stop-opacity:1"/><stop offset="100%" style="stop-color:${color};stop-opacity:0.4"/></linearGradient>`;}
             defs+=`</defs>`;
-            let bars='',xl='';const fs=data.length>12?6:data.length>7?7:8;
+            const seasonName=m=>[11,0,1].includes(m)?'Winter':[2,3,4].includes(m)?'Spring':[5,6,7].includes(m)?'Summer':'Autumn';
+            const seasonIdx=m=>[11,0,1].includes(m)?0:[2,3,4].includes(m)?1:[5,6,7].includes(m)?2:3;
+            let bars='',xl='',zones='';const fs=data.length>12?6:data.length>7?7:8;
+            const zw=cw/data.length;
             for(let i=0;i<data.length;i++){
-                const bh=(data[i]/max)*ch,x=pl+(i*(cw/data.length)),y=pt+ch-bh;
+                const bh=(data[i]/max)*ch,x=pl+(i*zw),y=pt+ch-bh;
                 const lbl=labels?.[i]??i,pct=((data[i]/total)*100).toFixed(1);
                 const sess=hourly?session(i):{n:''};
-                const gid=hourly?`g${i<8?0:i<16?1:2}_${uid}`:`g_${uid}`;
-                bars+=`<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="url(#${gid})"><title>${hourly?`Hour ${i} (${sess.n})`:lbl}: ${data[i]} (${pct}%)</title></rect>`;
-                xl+=`<text x="${x+bw/2}" y="${h-(hourly?30:20)}" text-anchor="middle" fill="#666" font-size="${fs}">${lbl}</text>`;
+                const gid=hourly?`g${i<8?0:i<16?1:2}_${uid}`:monthly?`m${seasonIdx(i)}_${uid}`:`g_${uid}`;
+                bars+=`<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="url(#${gid})"/>`;
+                const tipLabel=hourly?`Hour ${i} (${sess.n})`:monthly?`${lbl} (${seasonName(i)})`:lbl;
+                zones+=`<rect x="${x}" y="${pt}" width="${zw}" height="${ch}" fill="transparent" data-tip="${tipLabel}: ${data[i]} (${pct}%)"/>`;
+                xl+=`<text x="${x+bw/2}" y="${h-(hasLeg?30:20)}" text-anchor="middle" fill="#666" font-size="${fs}">${lbl}</text>`;
             }
             let leg='';
-            if(hourly){const ly=h-12;leg=`<rect x="${pl}" y="${ly}" width="8" height="8" fill="${colors[0]}"/><text x="${pl+10}" y="${ly+7}" fill="#888" font-size="7">Asia</text><rect x="${pl+50}" y="${ly}" width="8" height="8" fill="${colors[1]}"/><text x="${pl+60}" y="${ly+7}" fill="#888" font-size="7">Europe</text><rect x="${pl+110}" y="${ly}" width="8" height="8" fill="${colors[2]}"/><text x="${pl+120}" y="${ly+7}" fill="#888" font-size="7">USA</text>`;}
-            return `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#1a1a2e"/>${defs}<text x="${w/2}" y="16" text-anchor="middle" fill="#ccc" font-size="11">${title}</text><line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#444"/><line x1="${pl}" y1="${pt+ch}" x2="${w-pr}" y2="${pt+ch}" stroke="#444"/><line x1="${pl}" y1="${pt+ch/2}" x2="${w-pr}" y2="${pt+ch/2}" stroke="#333" stroke-dasharray="3"/>${bars}<text x="${pl-5}" y="${pt+4}" text-anchor="end" fill="#666" font-size="8">${Math.round(max)}</text><text x="${pl-5}" y="${pt+ch/2+3}" text-anchor="end" fill="#666" font-size="8">${Math.round(max/2)}</text><text x="${pl-5}" y="${pt+ch}" text-anchor="end" fill="#666" font-size="8">0</text>${xl}<text x="${w/2}" y="${h-(hourly?20:4)}" text-anchor="middle" fill="#888" font-size="9">${xLabel}</text><text x="10" y="${pt+ch/2}" text-anchor="middle" fill="#888" font-size="9" transform="rotate(-90 10 ${pt+ch/2})">${yLabel}</text>${leg}</svg>`;
+            if(hourly){const ly=h-12;leg=`<rect x="${pl}" y="${ly}" width="8" height="8" fill="${hColors[0]}"/><text x="${pl+10}" y="${ly+7}" fill="#888" font-size="7">Asia</text><rect x="${pl+50}" y="${ly}" width="8" height="8" fill="${hColors[1]}"/><text x="${pl+60}" y="${ly+7}" fill="#888" font-size="7">Europe</text><rect x="${pl+110}" y="${ly}" width="8" height="8" fill="${hColors[2]}"/><text x="${pl+120}" y="${ly+7}" fill="#888" font-size="7">USA</text>`;}
+            if(monthly){const ly=h-12;leg=`<rect x="${pl}" y="${ly}" width="8" height="8" fill="${mColors[0]}"/><text x="${pl+10}" y="${ly+7}" fill="#888" font-size="7">Winter</text><rect x="${pl+45}" y="${ly}" width="8" height="8" fill="${mColors[1]}"/><text x="${pl+55}" y="${ly+7}" fill="#888" font-size="7">Spring</text><rect x="${pl+90}" y="${ly}" width="8" height="8" fill="${mColors[2]}"/><text x="${pl+100}" y="${ly+7}" fill="#888" font-size="7">Summer</text><rect x="${pl+145}" y="${ly}" width="8" height="8" fill="${mColors[3]}"/><text x="${pl+155}" y="${ly+7}" fill="#888" font-size="7">Autumn</text>`;}
+            return `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#1a1a2e"/>${defs}<text x="${w/2}" y="16" text-anchor="middle" fill="#ccc" font-size="11">${title}</text><line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#444"/><line x1="${pl}" y1="${pt+ch}" x2="${w-pr}" y2="${pt+ch}" stroke="#444"/><line x1="${pl}" y1="${pt+ch/2}" x2="${w-pr}" y2="${pt+ch/2}" stroke="#333" stroke-dasharray="3"/>${bars}${zones}<text x="${pl-5}" y="${pt+4}" text-anchor="end" fill="#666" font-size="8">${Math.round(max)}</text><text x="${pl-5}" y="${pt+ch/2+3}" text-anchor="end" fill="#666" font-size="8">${Math.round(max/2)}</text><text x="${pl-5}" y="${pt+ch}" text-anchor="end" fill="#666" font-size="8">0</text>${xl}<text x="${w/2}" y="${h-(hasLeg?20:4)}" text-anchor="middle" fill="#888" font-size="9">${xLabel}</text><text x="10" y="${pt+ch/2}" text-anchor="middle" fill="#888" font-size="9" transform="rotate(-90 10 ${pt+ch/2})">${yLabel}</text>${leg}</svg>`;
         }
 
         function dualBarChart(profit, loss, labels, opt) {
@@ -304,18 +517,288 @@
             const gw=cw/(hourly?24:profit.length),bw=Math.max(hourly?2:3,(gw/2)-(hourly?1:2));
             const uid=Math.random().toString(36).substr(2,8);
             const defs=`<defs><linearGradient id="pG_${uid}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1"/><stop offset="100%" style="stop-color:#4CAF50;stop-opacity:0.3"/></linearGradient><linearGradient id="lG_${uid}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#f44336;stop-opacity:1"/><stop offset="100%" style="stop-color:#f44336;stop-opacity:0.3"/></linearGradient></defs>`;
-            let bars='',xl='';const fs=profit.length>12?6:profit.length>7?7:8;
+            let bars='',xl='',zones='';const fs=profit.length>12?6:profit.length>7?7:8;
             for(let i=0;i<profit.length;i++){
                 const gx=pl+(i*gw),lbl=labels?.[i]??i;
                 const sess=hourly?session(i):{n:''};
                 const ph=(profit[i]/max)*ch,py=pt+ch-ph;
-                bars+=`<rect x="${gx}" y="${py}" width="${bw}" height="${ph}" fill="url(#pG_${uid})"><title>${hourly?`Hour ${i} (${sess.n})`:lbl} Profit: ${profit[i].toFixed(2)}</title></rect>`;
+                bars+=`<rect x="${gx}" y="${py}" width="${bw}" height="${ph}" fill="url(#pG_${uid})"/>`;
                 const lh=(loss[i]/max)*ch,ly=pt+ch-lh;
-                bars+=`<rect x="${gx+bw+(hourly?0:1)}" y="${ly}" width="${bw}" height="${lh}" fill="url(#lG_${uid})"><title>${hourly?`Hour ${i} (${sess.n})`:lbl} Loss: ${loss[i].toFixed(2)}</title></rect>`;
+                bars+=`<rect x="${gx+bw+(hourly?0:1)}" y="${ly}" width="${bw}" height="${lh}" fill="url(#lG_${uid})"/>`;
+                zones+=`<rect x="${gx}" y="${pt}" width="${gw}" height="${ch}" fill="transparent" data-tip="${hourly?`Hour ${i} (${sess.n})`:lbl}\nProfit: ${fmtM(profit[i])}\nLoss: ${fmtM(loss[i])}"/>`;
                 xl+=`<text x="${gx+bw}" y="${h-30}" text-anchor="middle" fill="#666" font-size="${fs}">${lbl}</text>`;
             }
             const ly=h-12;
-            return `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#1a1a2e"/>${defs}<text x="${w/2}" y="16" text-anchor="middle" fill="#ccc" font-size="11">${title}</text><line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#444"/><line x1="${pl}" y1="${pt+ch}" x2="${w-pr}" y2="${pt+ch}" stroke="#444"/><line x1="${pl}" y1="${pt+ch/2}" x2="${w-pr}" y2="${pt+ch/2}" stroke="#333" stroke-dasharray="3"/>${bars}<text x="${pl-5}" y="${pt+4}" text-anchor="end" fill="#666" font-size="8">${max.toFixed(1)}</text><text x="${pl-5}" y="${pt+ch/2+3}" text-anchor="end" fill="#666" font-size="8">${(max/2).toFixed(1)}</text><text x="${pl-5}" y="${pt+ch}" text-anchor="end" fill="#666" font-size="8">0</text>${xl}<text x="${w/2}" y="${h-18}" text-anchor="middle" fill="#888" font-size="9">${xLabel}</text><text x="10" y="${pt+ch/2}" text-anchor="middle" fill="#888" font-size="9" transform="rotate(-90 10 ${pt+ch/2})">${yLabel}</text><rect x="${pl}" y="${ly}" width="8" height="8" fill="#4CAF50"/><text x="${pl+10}" y="${ly+7}" fill="#888" font-size="7">Profit</text><rect x="${pl+50}" y="${ly}" width="8" height="8" fill="#f44336"/><text x="${pl+60}" y="${ly+7}" fill="#888" font-size="7">Loss</text></svg>`;
+            return `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#1a1a2e"/>${defs}<text x="${w/2}" y="16" text-anchor="middle" fill="#ccc" font-size="11">${title}</text><line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#444"/><line x1="${pl}" y1="${pt+ch}" x2="${w-pr}" y2="${pt+ch}" stroke="#444"/><line x1="${pl}" y1="${pt+ch/2}" x2="${w-pr}" y2="${pt+ch/2}" stroke="#333" stroke-dasharray="3"/>${bars}${zones}<text x="${pl-5}" y="${pt+4}" text-anchor="end" fill="#666" font-size="8">${max.toFixed(1)}</text><text x="${pl-5}" y="${pt+ch/2+3}" text-anchor="end" fill="#666" font-size="8">${(max/2).toFixed(1)}</text><text x="${pl-5}" y="${pt+ch}" text-anchor="end" fill="#666" font-size="8">0</text>${xl}<text x="${w/2}" y="${h-18}" text-anchor="middle" fill="#888" font-size="9">${xLabel}</text><text x="10" y="${pt+ch/2}" text-anchor="middle" fill="#888" font-size="9" transform="rotate(-90 10 ${pt+ch/2})">${yLabel}</text><rect x="${pl}" y="${ly}" width="8" height="8" fill="#4CAF50"/><text x="${pl+10}" y="${ly+7}" fill="#888" font-size="7">Profit</text><rect x="${pl+50}" y="${ly}" width="8" height="8" fill="#f44336"/><text x="${pl+60}" y="${ly+7}" fill="#888" font-size="7">Loss</text></svg>`;
+        }
+
+        function pieChart(data, opt) {
+            const {title='',w=200,h=200} = opt;
+            const total = data.reduce((a,d) => a + d.value, 0);
+            if (total === 0) return '';
+            const cx=w/2, cy=h/2+10, r=Math.min(w,h)/2-30;
+            let startAngle = -Math.PI/2, paths = '', legend = '';
+            const ly = h - 15;
+            let lx = 10;
+            data.forEach((d,i) => {
+                const angle = (d.value / total) * 2 * Math.PI;
+                const endAngle = startAngle + angle;
+                const x1 = cx + r * Math.cos(startAngle), y1 = cy + r * Math.sin(startAngle);
+                const x2 = cx + r * Math.cos(endAngle), y2 = cy + r * Math.sin(endAngle);
+                const large = angle > Math.PI ? 1 : 0;
+                const pct = ((d.value/total)*100).toFixed(1);
+                paths += `<path d="M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large} 1 ${x2},${y2} Z" fill="${d.color}" data-tip="${d.label}: ${d.value} (${pct}%)"/>`;
+                legend += `<rect x="${lx}" y="${ly}" width="8" height="8" fill="${d.color}"/><text x="${lx+10}" y="${ly+7}" fill="#888" font-size="7">${d.label}</text>`;
+                lx += 55;
+                startAngle = endAngle;
+            });
+            return `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#1a1a2e"/><text x="${w/2}" y="16" text-anchor="middle" fill="#ccc" font-size="11">${title}</text>${paths}${legend}</svg>`;
+        }
+
+        function renderReturnDist(closed) {
+            if (!closed.length) return '';
+            const profits = closed.map(t => t.r);
+            const min = Math.min(...profits), max = Math.max(...profits);
+            const range = max - min || 1;
+            const buckets = 20;
+            const bucketSize = range / buckets;
+            const hist = Array(buckets).fill(0);
+            const histWin = Array(buckets).fill(0);
+            const histLoss = Array(buckets).fill(0);
+            profits.forEach(p => {
+                let idx = Math.floor((p - min) / bucketSize);
+                if (idx >= buckets) idx = buckets - 1;
+                hist[idx]++;
+                if (p >= 0) histWin[idx]++; else histLoss[idx]++;
+            });
+            const labels = hist.map((_, i) => {
+                const v = min + i * bucketSize;
+                return v >= 0 ? `+${v.toFixed(0)}` : v.toFixed(0);
+            });
+            // Stacked bar chart for wins/losses
+            const maxH = Math.max(...hist) || 1;
+            const w = 500, h = 200, pl = 45, pr = 15, pt = 30, pb = 40;
+            const cw = w - pl - pr, ch = h - pt - pb;
+            const bw = cw / buckets - 1;
+            let bars = '', zones = '';
+            for (let i = 0; i < buckets; i++) {
+                const x = pl + i * (cw / buckets);
+                const wh = (histWin[i] / maxH) * ch;
+                const lh = (histLoss[i] / maxH) * ch;
+                const th = wh + lh;
+                bars += `<rect x="${x}" y="${pt + ch - th}" width="${bw}" height="${lh}" fill="#f44336"/>`;
+                bars += `<rect x="${x}" y="${pt + ch - wh}" width="${bw}" height="${wh}" fill="#4CAF50"/>`;
+                const lbl = labels[i];
+                zones += `<rect x="${x}" y="${pt}" width="${bw+1}" height="${ch}" fill="transparent" data-tip="${lbl}: ${hist[i]} trades\nWins: ${histWin[i]}, Losses: ${histLoss[i]}"/>`;
+            }
+            const svg = `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#1a1a2e"/><text x="${w/2}" y="16" text-anchor="middle" fill="#ccc" font-size="11">Return Distribution (Histogram)</text><line x1="${pl}" y1="${pt+ch}" x2="${w-pr}" y2="${pt+ch}" stroke="#444"/>${bars}${zones}<text x="${pl}" y="${h-5}" fill="#666" font-size="8">${min.toFixed(0)}</text><text x="${w-pr}" y="${h-5}" text-anchor="end" fill="#666" font-size="8">${max.toFixed(0)}</text><text x="${w/2}" y="${h-5}" text-anchor="middle" fill="#888" font-size="9">Profit/Loss</text></svg>`;
+            // Stats
+            const avg = profits.reduce((a,b)=>a+b,0)/profits.length;
+            const sorted = [...profits].sort((a,b)=>a-b);
+            const median = sorted[Math.floor(sorted.length/2)];
+            const stdDev = Math.sqrt(profits.reduce((s,p)=>s+Math.pow(p-avg,2),0)/profits.length);
+            return `<div>${svg}</div><div style="padding:10px;color:#888;font-size:12px;">Mean: <span style="color:#fff">${fmtM(avg)}</span> | Median: <span style="color:#fff">${fmtM(median)}</span> | Std Dev: <span style="color:#fff">${fmtM(stdDev)}</span></div>`;
+        }
+
+        function renderExitAnalysis(closed) {
+            const exits = {sl: 0, tp: 0, manual: 0};
+            const exitProfit = {sl: 0, tp: 0, manual: 0};
+            closed.forEach(t => {
+                if (t.y === 's/l') { exits.sl++; exitProfit.sl += t.r; }
+                else if (t.y === 't/p') { exits.tp++; exitProfit.tp += t.r; }
+                else { exits.manual++; exitProfit.manual += t.r; }
+            });
+            const pieData = [
+                {label: 'Stop Loss', value: exits.sl, color: '#f44336'},
+                {label: 'Take Profit', value: exits.tp, color: '#4CAF50'},
+                {label: 'Manual', value: exits.manual, color: '#2196F3'}
+            ].filter(d => d.value > 0);
+            const total = exits.sl + exits.tp + exits.manual;
+            const avgSl = exits.sl ? fmtM(exitProfit.sl / exits.sl) : '-';
+            const avgTp = exits.tp ? fmtM(exitProfit.tp / exits.tp) : '-';
+            const avgMan = exits.manual ? fmtM(exitProfit.manual / exits.manual) : '-';
+            const stats = `<div style="padding:10px;color:#888;font-size:12px;">
+                <div>Stop Loss: <span style="color:#f44336">${exits.sl}</span> (${(exits.sl/total*100).toFixed(1)}%) Avg P/L: <span style="color:${exitProfit.sl>=0?'#4CAF50':'#f44336'}">${avgSl}</span></div>
+                <div>Take Profit: <span style="color:#4CAF50">${exits.tp}</span> (${(exits.tp/total*100).toFixed(1)}%) Avg P/L: <span style="color:#4CAF50">${avgTp}</span></div>
+                <div>Manual Close: <span style="color:#2196F3">${exits.manual}</span> (${(exits.manual/total*100).toFixed(1)}%) Avg P/L: <span style="color:${exitProfit.manual>=0?'#4CAF50':'#f44336'}">${avgMan}</span></div>
+            </div>`;
+            return `<div>${pieChart(pieData, {title: 'Exit Types', w: 220, h: 180})}</div><div>${stats}</div>`;
+        }
+
+        function renderRollingPerf(closed, windowSize = 50) {
+            if (closed.length < windowSize) return '<p style="color:#888;padding:20px;">Not enough trades for rolling analysis.</p>';
+            const rollingWinRate = [], rollingProfit = [];
+            for (let i = windowSize; i <= closed.length; i++) {
+                const window = closed.slice(i - windowSize, i);
+                const wins = window.filter(t => t.r > 0).length;
+                rollingWinRate.push(wins / windowSize * 100);
+                rollingProfit.push(window.reduce((s, t) => s + t.r, 0));
+            }
+            return `<div class="chart-row">
+                <div>${lineChart(rollingWinRate, null, {title: `Rolling Win Rate (${windowSize} trades)`, xLabel: 'Trade #', yLabel: 'Win %', w: 500, h: 200, c1: '#4CAF50', gridX: 10})}</div>
+                <div>${lineChart(rollingProfit, null, {title: `Rolling Profit (${windowSize} trades)`, xLabel: 'Trade #', yLabel: 'Profit', w: 500, h: 200, c1: '#2196F3', gridX: 10, zero: true})}</div>
+            </div>`;
+        }
+
+        function renderStreaks(closed) {
+            if (!closed.length) return '';
+            const w = 900, h = 120, pl = 40, pr = 10, pt = 30, pb = 25;
+            const cw = w - pl - pr, ch = h - pt - pb;
+            const maxShow = Math.min(500, closed.length);
+            const step = closed.length / maxShow;
+            let bars = '', zones = '';
+            let curStreak = 0, streaks = [];
+            closed.forEach((t, i) => {
+                if (t.r > 0) curStreak = curStreak > 0 ? curStreak + 1 : 1;
+                else if (t.r < 0) curStreak = curStreak < 0 ? curStreak - 1 : -1;
+                else curStreak = 0;
+                streaks.push(curStreak);
+            });
+            const maxStreak = Math.max(Math.abs(Math.min(...streaks)), Math.max(...streaks)) || 1;
+            for (let i = 0; i < maxShow; i++) {
+                const idx = Math.floor(i * step);
+                const streak = streaks[idx];
+                const x = pl + (i / maxShow) * cw;
+                const bw = Math.max(1, cw / maxShow - 0.5);
+                const bh = (Math.abs(streak) / maxStreak) * (ch / 2);
+                const y = streak >= 0 ? pt + ch / 2 - bh : pt + ch / 2;
+                const color = streak >= 0 ? '#4CAF50' : '#f44336';
+                bars += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="${color}"/>`;
+                zones += `<rect x="${x}" y="${pt}" width="${bw}" height="${ch}" fill="transparent" data-tip="Trade #${idx+1}\nStreak: ${streak > 0 ? '+' : ''}${streak}\nP/L: ${fmtM(closed[idx].r)}"/>`;
+            }
+            const maxW = Math.max(...streaks), maxL = Math.min(...streaks);
+            return `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+                <rect width="100%" height="100%" fill="#1a1a2e"/>
+                <text x="${w/2}" y="16" text-anchor="middle" fill="#ccc" font-size="11">Win/Loss Streaks Over Time</text>
+                <line x1="${pl}" y1="${pt+ch/2}" x2="${w-pr}" y2="${pt+ch/2}" stroke="#444"/>
+                ${bars}${zones}
+                <text x="${pl-5}" y="${pt+5}" text-anchor="end" fill="#4CAF50" font-size="8">+${maxW}</text>
+                <text x="${pl-5}" y="${pt+ch}" text-anchor="end" fill="#f44336" font-size="8">${maxL}</text>
+                <text x="${w/2}" y="${h-5}" text-anchor="middle" fill="#888" font-size="9">Trade Sequence</text>
+            </svg>`;
+        }
+
+        function renderLotAnalysis(closed) {
+            if (!closed.length) return '';
+            const lots = closed.map(t => t.v);
+            const uniqueLots = [...new Set(lots)].sort((a, b) => a - b);
+            // Group by lot size
+            const lotStats = {};
+            closed.forEach(t => {
+                if (!lotStats[t.v]) lotStats[t.v] = {count: 0, profit: 0, wins: 0};
+                lotStats[t.v].count++;
+                lotStats[t.v].profit += t.r;
+                if (t.r > 0) lotStats[t.v].wins++;
+            });
+            const lotData = Object.entries(lotStats).map(([lot, s]) => ({
+                lot: parseFloat(lot),
+                count: s.count,
+                profit: s.profit,
+                avgProfit: s.profit / s.count,
+                winRate: s.wins / s.count * 100
+            })).sort((a, b) => a.lot - b.lot);
+            // Bar chart for count by lot size
+            const labels = lotData.map(d => d.lot.toFixed(2));
+            const counts = lotData.map(d => d.count);
+            const avgProfits = lotData.map(d => d.avgProfit);
+            const winRates = lotData.map(d => d.winRate);
+            // Scatter: lot size vs avg profit
+            const scatterData = lotData.map(d => ({x: d.lot, y: d.avgProfit}));
+            return `<div>${barChart(counts, labels, {title: 'Trades by Lot Size', xLabel: 'Lot Size', yLabel: 'Count', w: 300, h: 180, color: '#9C27B0'})}</div>
+                <div>${scatterChart(scatterData, {title: 'Lot Size vs Avg Profit', xLabel: 'Lot Size', yLabel: 'Avg Profit', w: 300, h: 180, color: '#FF9800'})}</div>
+                <div style="padding:10px;color:#888;font-size:11px;">${lotData.slice(0,8).map(d =>
+                    `<div>${d.lot.toFixed(2)} lots: ${d.count} trades, WR: ${d.winRate.toFixed(1)}%, Avg: <span style="color:${d.avgProfit>=0?'#4CAF50':'#f44336'}">${fmtM(d.avgProfit)}</span></div>`
+                ).join('')}</div>`;
+        }
+
+        function renderMonthlyReturns(closed) {
+            if (!closed.length) return '';
+            const monthly = {};
+            closed.forEach(t => {
+                const dt = parseTime(t.t);
+                if (!dt) return;
+                const key = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;
+                if (!monthly[key]) monthly[key] = {profit: 0, count: 0, wins: 0};
+                monthly[key].profit += t.r;
+                monthly[key].count++;
+                if (t.r > 0) monthly[key].wins++;
+            });
+            const sorted = Object.entries(monthly).sort((a, b) => a[0].localeCompare(b[0]));
+            if (!sorted.length) return '';
+            // Create heatmap-style table
+            const maxProfit = Math.max(...sorted.map(([,v]) => Math.abs(v.profit))) || 1;
+            let rows = sorted.map(([month, data]) => {
+                const intensity = Math.min(1, Math.abs(data.profit) / maxProfit);
+                const color = data.profit >= 0
+                    ? `rgba(76,175,80,${0.2 + intensity * 0.6})`
+                    : `rgba(244,67,54,${0.2 + intensity * 0.6})`;
+                const wr = (data.wins / data.count * 100).toFixed(1);
+                return `<tr style="background:${color}">
+                    <td style="padding:4px 8px;color:#fff">${month}</td>
+                    <td style="padding:4px 8px;text-align:right;color:${data.profit>=0?'#90EE90':'#FA8072'}">${fmtM(data.profit)}</td>
+                    <td style="padding:4px 8px;text-align:right;color:#ccc">${data.count}</td>
+                    <td style="padding:4px 8px;text-align:right;color:#ccc">${wr}%</td>
+                </tr>`;
+            }).join('');
+            // Cumulative line
+            let cum = 0;
+            const cumData = sorted.map(([,v]) => { cum += v.profit; return cum; });
+            const labels = sorted.map(([m]) => m.slice(2));
+            return `<div class="chart-row">
+                <div><table style="border-collapse:collapse;font-size:11px;margin:10px;">
+                    <tr style="background:#252540"><th style="padding:4px 8px;color:#888">Month</th><th style="padding:4px 8px;color:#888">Profit</th><th style="padding:4px 8px;color:#888">Trades</th><th style="padding:4px 8px;color:#888">Win%</th></tr>
+                    ${rows}
+                </table></div>
+                <div>${lineChart(cumData, null, {title: 'Cumulative Monthly Profit', xLabel: 'Month', yLabel: 'Cumulative P/L', w: 500, h: 200, c1: '#4CAF50', gridX: Math.min(10, sorted.length), zero: true})}</div>
+            </div>`;
+        }
+
+        function renderDuration(closed, events) {
+            // Calculate trade durations by matching open and close events
+            const openTimes = {};
+            events.forEach(e => {
+                if (e.y === 'buy' || e.y === 'sell') {
+                    const dt = parseTime(e.t);
+                    if (dt) openTimes[e.o] = dt;
+                }
+            });
+            const durations = [];
+            closed.forEach(t => {
+                const openDt = openTimes[t.o];
+                const closeDt = parseTime(t.t);
+                if (openDt && closeDt) {
+                    const mins = (closeDt - openDt) / 60000;
+                    if (mins >= 0) durations.push({mins, profit: t.r, order: t.o});
+                }
+            });
+            if (!durations.length) return '<p style="color:#888;padding:20px;">Duration data not available.</p>';
+            // Stats
+            const avgMins = durations.reduce((s, d) => s + d.mins, 0) / durations.length;
+            const sorted = [...durations].sort((a, b) => a.mins - b.mins);
+            const median = sorted[Math.floor(sorted.length / 2)].mins;
+            const maxD = Math.max(...durations.map(d => d.mins));
+            const minD = Math.min(...durations.map(d => d.mins));
+            // Format duration
+            const fmtDur = m => m < 60 ? `${m.toFixed(0)}m` : m < 1440 ? `${(m/60).toFixed(1)}h` : `${(m/1440).toFixed(1)}d`;
+            // Bucket into ranges
+            const ranges = [5, 15, 30, 60, 240, 1440, Infinity];
+            const rangeLabels = ['<5m', '5-15m', '15-30m', '30m-1h', '1-4h', '4-24h', '>24h'];
+            const rangeCounts = Array(ranges.length).fill(0);
+            const rangeProfit = Array(ranges.length).fill(0);
+            durations.forEach(d => {
+                for (let i = 0; i < ranges.length; i++) {
+                    if (d.mins < ranges[i]) { rangeCounts[i]++; rangeProfit[i] += d.profit; break; }
+                }
+            });
+            // Scatter: duration vs profit
+            const scatterData = durations.slice(0, 500).map(d => ({x: Math.min(d.mins, 1440), y: d.profit}));
+            return `<div>${barChart(rangeCounts, rangeLabels, {title: 'Trade Count by Duration', xLabel: 'Duration', yLabel: 'Trades', w: 320, h: 180, color: '#00BCD4'})}</div>
+                <div>${scatterChart(scatterData, {title: 'Duration vs Profit (capped 24h)', xLabel: 'Minutes', yLabel: 'Profit', w: 320, h: 180, color: '#FF9800'})}</div>
+                <div style="padding:10px;color:#888;font-size:12px;">
+                    Avg Duration: <span style="color:#fff">${fmtDur(avgMins)}</span> |
+                    Median: <span style="color:#fff">${fmtDur(median)}</span> |
+                    Range: <span style="color:#fff">${fmtDur(minD)} - ${fmtDur(maxD)}</span>
+                </div>`;
         }
 
         function renderDistCharts(closed) {
@@ -324,7 +807,7 @@
             const mo=Array(12).fill(0),mp=Array(12).fill(0),ml=Array(12).fill(0);
             closed.forEach(t=>{const dt=parseTime(t.t);if(!dt)return;const h=dt.getHours(),d=dt.getDay(),m=dt.getMonth();ho[h]++;do_[d]++;mo[m]++;if(t.r>0){hp[h]+=t.r;dp[d]+=t.r;mp[m]+=t.r;}else{hl[h]+=Math.abs(t.r);dl[d]+=Math.abs(t.r);ml[m]+=Math.abs(t.r);}});
             const wl=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],ml_=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-            return `<div>${barChart(ho,[...Array(24).keys()],{title:'Orders by Hour',xLabel:'Hour (UTC)',yLabel:'Orders',w:340,h:200,hourly:true})}</div><div>${barChart(do_,wl,{title:'Orders by Weekday',xLabel:'Day',yLabel:'Orders',w:280,h:180,color:'#4CAF50'})}</div><div>${barChart(mo,ml_,{title:'Orders by Month',xLabel:'Month',yLabel:'Orders',w:280,h:180,color:'#00BCD4'})}</div><div>${dualBarChart(hp,hl,[...Array(24).keys()],{title:'P/L by Hour',xLabel:'Hour (UTC)',w:340,h:200,hourly:true})}</div><div>${dualBarChart(dp,dl,wl,{title:'P/L by Weekday',xLabel:'Day',w:280,h:200})}</div><div>${dualBarChart(mp,ml,ml_,{title:'P/L by Month',xLabel:'Month',w:280,h:200})}</div>`;
+            return `<div>${barChart(ho,[...Array(24).keys()],{title:'Orders by Hour',xLabel:'Hour (UTC)',yLabel:'Orders',w:340,h:200,hourly:true})}</div><div>${barChart(do_,wl,{title:'Orders by Weekday',xLabel:'Day',yLabel:'Orders',w:280,h:180,color:'#4CAF50'})}</div><div>${barChart(mo,ml_,{title:'Orders by Month',xLabel:'Month',yLabel:'Orders',w:340,h:200,monthly:true})}</div><div>${dualBarChart(hp,hl,[...Array(24).keys()],{title:'P/L by Hour',xLabel:'Hour (UTC)',w:340,h:200,hourly:true})}</div><div>${dualBarChart(dp,dl,wl,{title:'P/L by Weekday',xLabel:'Day',w:280,h:200})}</div><div>${dualBarChart(mp,ml,ml_,{title:'P/L by Month',xLabel:'Month',w:280,h:200})}</div>`;
         }
 
         function renderMfeMae(closed) {
@@ -348,7 +831,7 @@
                 let slc='',tpc='';
                 if(pos&&e.s>0)slc=pos.type==='buy'?(e.s>pos.entry?'sl-profit':'sl-loss'):(e.s<pos.entry?'sl-profit':'sl-loss');
                 if(e.k>0)tpc='tp-set';
-                rows+=`<tr><td>${e.n}</td><td class="${sess.c}">${e.t}</td><td>${e.o}</td><td class="${tc}">${e.y.toUpperCase()}</td><td class="${vc}">${e.v.toFixed(2)}</td><td>${e.p.toFixed(5)}</td><td class="${slc}">${e.s.toFixed(5)}</td><td class="${tpc}">${e.k.toFixed(5)}</td><td class="${pc}">${e.r.toFixed(2)}</td><td>${e.b.toFixed(2)}</td></tr>`;
+                rows+=`<tr><td>${e.n}</td><td class="${sess.c}">${e.t}</td><td>${e.o}</td><td class="${tc}">${e.y.toUpperCase()}</td><td class="${vc}">${e.v.toFixed(2)}</td><td>${e.p.toFixed(5)}</td><td class="${slc}">${e.s.toFixed(5)}</td><td class="${tpc}">${e.k.toFixed(5)}</td><td class="${pc}">${fmtM(e.r)}</td><td>${fmtM(e.b)}</td></tr>`;
             });
             return `<table><thead><tr><th>#</th><th>Time</th><th>Order</th><th>Type</th><th>Volume</th><th>Price</th><th>S/L</th><th>T/P</th><th>Profit</th><th>Balance</th></tr></thead><tbody>${rows}</tbody></table>`;
         }
@@ -367,8 +850,8 @@
                 else if(e.y==='t/p')tc='tp-set';
                 else if(e.y==='s/l')tc=e.r!=null?(e.r>=0?'sl-profit':'sl-loss'):'';
                 else if(e.y==='close')tc=e.r!=null?(e.r>=0?'type-close-profit':'type-close-loss'):'';
-                const pCell=e.r!=null?`<td class="${e.r>0?'positive':e.r<0?'negative':''}">${e.r.toFixed(2)}</td>`:'<td class="empty">-</td>';
-                const bCell=e.b!=null?`<td>${e.b.toFixed(2)}</td>`:'<td class="empty">-</td>';
+                const pCell=e.r!=null?`<td class="${e.r>0?'positive':e.r<0?'negative':''}">${fmtM(e.r)}</td>`:'<td class="empty">-</td>';
+                const bCell=e.b!=null?`<td>${fmtM(e.b)}</td>`:'<td class="empty">-</td>';
                 let slc='',tpc='',slVal=e.s>0?e.s.toFixed(5):'-',tpVal=e.k>0?e.k.toFixed(5):'-';
                 const slChanged=lastSL[e.o]!==e.s,tpChanged=lastTP[e.o]!==e.k;
                 if(e.y==='modify'){
@@ -386,35 +869,135 @@
             return `<table><thead><tr><th>#</th><th>Time</th><th>Type</th><th>Order</th><th>Volume</th><th>Price</th><th>S/L</th><th>T/P</th><th>Profit</th><th>Balance</th></tr></thead><tbody>${rows}</tbody></table>`;
         }
 
+        function renderParams(params) {
+            if (!params || typeof params !== 'object') return '<p style="color:#666">No parameters available</p>';
+            const keys = Object.keys(params);
+            if (keys.length === 0) return '<p style="color:#666">No parameters available</p>';
+            let rows = '';
+            keys.sort().forEach(k => { rows += `<tr><td>${k}</td><td>${params[k]}</td></tr>`; });
+            return `<table><thead><tr><th>Parameter</th><th>Value</th></tr></thead><tbody>${rows}</tbody></table>`;
+        }
+
+        function qualityClass(q) {
+            const pct = parseFloat(q);
+            if (isNaN(pct)) return '';
+            if (pct < 50) return 'quality-bad';
+            if (pct < 75) return 'quality-meh';
+            if (pct < 95) return 'quality-good';
+            return 'quality-perfect';
+        }
+
+        function qualityLabel(q) {
+            const pct = parseFloat(q);
+            if (isNaN(pct)) return '';
+            if (pct < 50) return 'Poor';
+            if (pct < 75) return 'Fair';
+            if (pct < 95) return 'Good';
+            return 'Excellent';
+        }
+
+        function modelClass(model) {
+            if (!model) return '';
+            const m = model.toLowerCase();
+            if (m.includes('every tick') || m.includes('jeder tick')) return 'model-best';
+            if (m.includes('control point') || m.includes('kontrollpunkt')) return 'model-good';
+            return 'model-fast';
+        }
+
+        function modelLabel(model) {
+            if (!model) return '';
+            const m = model.toLowerCase();
+            if (m.includes('every tick') || m.includes('jeder tick')) return 'Most precise';
+            if (m.includes('control point') || m.includes('kontrollpunkt')) return 'Moderate';
+            return 'Fast (less accurate)';
+        }
+
+        function parseMT4Date(s) {
+            if (!s) return null;
+            const m = s.match(/(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})/);
+            return m ? new Date(m[1], m[2]-1, m[3], m[4], m[5]) : null;
+        }
+
+        function formatDuration(start, end) {
+            if (!start || !end) return '';
+            const d1 = parseMT4Date(start);
+            const d2 = parseMT4Date(end);
+            if (!d1 || !d2) return '';
+            const diffMs = d2 - d1;
+            const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            const years = Math.floor(days / 365);
+            const months = Math.floor((days % 365) / 30);
+            const remainDays = days % 30;
+            let parts = [];
+            if (years > 0) parts.push(`${years}y`);
+            if (months > 0) parts.push(`${months}m`);
+            if (remainDays > 0 || parts.length === 0) parts.push(`${remainDays}d`);
+            return `${days} days (${parts.join(' ')})`;
+        }
+
+        function metaCard(label, value, sub='', cls='') {
+            return `<div class="meta-card"><div class="meta-label">${label}</div><div class="meta-value ${cls}">${value}</div>${sub?`<div class="meta-sub">${sub}</div>`:''}</div>`;
+        }
+
+        function renderMetaCards(m, deposit) {
+            const qClass = qualityClass(m.quality);
+            const qLabel = qualityLabel(m.quality);
+            const mClass = modelClass(m.model);
+            const mLabel = modelLabel(m.model);
+            const duration = formatDuration(m.startDate, m.endDate);
+            const modelShort = m.model ? (m.model.length > 30 ? m.model.substring(0,30)+'...' : m.model) : '-';
+            // Parse symbol string like "EURJPY (1 Lot= 100,000 EUR)"
+            const symRaw = m.symbol || '';
+            const symMatch = symRaw.match(/^([^\s(]+)(?:\s*\(1\s*Lot\s*=\s*([^)]+)\))?/i);
+            const symbol = symMatch ? symMatch[1].trim() : symRaw;
+            const lotSize = symMatch && symMatch[2] ? symMatch[2].trim() : '-';
+
+            return metaCard('Symbol', symbol || '-') +
+                   metaCard('1 Lot', lotSize) +
+                   metaCard('Period', m.period ? m.period.split(' ')[0] : '-') +
+                   metaCard('Date Range', m.startDate ? `${m.startDate.split(' ')[0]} - ${m.endDate?.split(' ')[0]||''}` : '-', duration) +
+                   metaCard('Model', modelShort, mLabel, mClass) +
+                   metaCard('Modelling Quality', m.quality || '-', qLabel, qClass) +
+                   metaCard('Bars Tested', (m.bars||0).toLocaleString()) +
+                   metaCard('Ticks Modelled', (m.ticks||0).toLocaleString()) +
+                   metaCard('Initial Deposit', fmtM(deposit)) +
+                   metaCard('Spread', m.spread || '-') +
+                   metaCard('Chart Errors', (m.errors||0).toString(), m.errors > 0 ? 'May affect accuracy' : 'Clean', m.errors > 0 ? 'quality-bad' : 'quality-good');
+        }
+
         function renderStats(s) {
             return `<tr><th>Metric</th><th>Value</th><th>Metric</th><th>Value</th></tr>
-            <tr><td>Total Trades</td><td>${s.totalTrades}</td><td>Initial Deposit</td><td>${fmt(s.deposit)}</td></tr>
-            <tr><td>Winning Trades</td><td class="positive">${s.winCount} (${fmt(s.winRate,1)}%)</td><td>Gross Profit</td><td class="positive">${fmt(s.grossProfit)}</td></tr>
-            <tr><td>Losing Trades</td><td class="negative">${s.lossCount} (${fmt(100-s.winRate,1)}%)</td><td>Gross Loss</td><td class="negative">${fmt(s.grossLoss)}</td></tr>
-            <tr><td>Largest Win</td><td class="positive">${fmt(s.largestWin)}</td><td>Largest Loss</td><td class="negative">${fmt(s.largestLoss)}</td></tr>
-            <tr><td>Average Win</td><td class="positive">${fmt(s.avgWin)}</td><td>Average Loss</td><td class="negative">${fmt(s.avgLoss)}</td></tr>
-            <tr><td>Max Consec. Wins</td><td>${s.consec.wins} (${fmt(s.consec.wProfit)})</td><td>Max Consec. Losses</td><td>${s.consec.losses} (${fmt(s.consec.lLoss)})</td></tr>
-            <tr><td>Absolute Drawdown</td><td class="negative">${fmt(s.maxDDAbs)}</td><td>Max Drawdown %</td><td class="negative">${fmt(s.maxDD)}%</td></tr>`;
+            <tr><td>Total Trades</td><td>${s.totalTrades}</td><td>Initial Deposit</td><td>${fmtM(s.deposit)}</td></tr>
+            <tr><td>Winning Trades</td><td class="positive">${s.winCount} (${fmt(s.winRate,1)}%)</td><td>Gross Profit</td><td class="positive">${fmtM(s.grossProfit)}</td></tr>
+            <tr><td>Losing Trades</td><td class="negative">${s.lossCount} (${fmt(100-s.winRate,1)}%)</td><td>Gross Loss</td><td class="negative">${fmtM(s.grossLoss)}</td></tr>
+            <tr><td>Largest Win</td><td class="positive">${fmtM(s.largestWin)}</td><td>Largest Loss</td><td class="negative">${fmtM(s.largestLoss)}</td></tr>
+            <tr><td>Average Win</td><td class="positive">${fmtM(s.avgWin)}</td><td>Average Loss</td><td class="negative">${fmtM(s.avgLoss)}</td></tr>
+            <tr><td>Max Consec. Wins (profit)</td><td>${s.consec.wins} (${fmtM(s.consec.wProfit)})</td><td>Max Consec. Losses (loss)</td><td>${s.consec.losses} (${fmtM(s.consec.lLoss)})</td></tr>
+            <tr><td>Max Consec. Profit (count)</td><td class="positive">${fmtM(s.consec.maxProfit)} (${s.consec.maxProfitCount||'-'})</td><td>Max Consec. Loss (count)</td><td class="negative">${fmtM(s.consec.maxLoss)} (${s.consec.maxLossCount||'-'})</td></tr>
+            <tr><td>Avg Consec. Wins</td><td>${s.consec.avgWins||'-'}</td><td>Avg Consec. Losses</td><td>${s.consec.avgLosses||'-'}</td></tr>
+            <tr><td>Absolute Drawdown</td><td class="negative">${fmtM(s.absDrawdown)}</td><td>Max Drawdown</td><td class="negative">${fmtM(s.maxDDAbs)} (${fmt(s.maxDD)}%)</td></tr>`;
         }
 
         function init() {
             if (!RAW?.meta) { document.body.innerHTML='<div class="container"><h1>Error</h1><p>No report data.</p></div>'; return; }
             const s = analyze(RAW);
             const m = s.meta;
+            CUR = s.currency; // Set global currency for fmtM
 
-            document.getElementById('subtitle').textContent = `${m.expert||'EA'} | ${m.symbol||''}`;
-            document.getElementById('test-info').innerHTML = `<p><strong>Period:</strong> ${m.period||'-'}</p><p><strong>Model:</strong> ${m.model||'-'}</p><p><strong>Bars:</strong> ${(m.bars||0).toLocaleString()} | <strong>Ticks:</strong> ${(m.ticks||0).toLocaleString()} | <strong>Quality:</strong> ${m.quality||'-'}</p><p><strong>Spread:</strong> ${m.spread||'-'} | <strong>Errors:</strong> ${m.errors||0}</p>`;
+            document.getElementById('subtitle').textContent = m.expert || 'Expert Advisor';
+            document.getElementById('meta-cards').innerHTML = renderMetaCards(m, s.deposit);
+            document.getElementById('params-table').innerHTML = renderParams(m.params);
 
             document.getElementById('perf-cards').innerHTML =
-                card('Net Profit',fmt(s.netProfit),'Total profit after losses. Higher is better.',s.netProfit>=0?'positive':'negative')+
+                card('Net Profit',fmtM(s.netProfit),'Total profit after losses. Higher is better.',s.netProfit>=0?'positive':'negative')+
                 card('Profit Factor',fmt(s.profitFactor),'Gross Profit / Gross Loss. Target: > 1.5',s.profitFactor>=1.5?'positive':s.profitFactor>=1?'neutral':'negative')+
                 card('Win Rate',`${fmt(s.winRate,1)}%`,'Percentage of winning trades. Target: > 50%',s.winRate>=50?'positive':'negative',`${s.winCount} / ${s.totalTrades} trades`)+
-                card('Max Drawdown',`${fmt(s.maxDD)}%`,'Largest peak-to-valley decline. Lower is better.','negative',`${fmt(s.maxDDAbs)} absolute`);
+                card('Max Drawdown',`${fmt(s.maxDD)}%`,'Largest peak-to-valley decline. Lower is better.','negative',`${fmtM(s.maxDDAbs)} absolute`);
 
             document.getElementById('pos-cards').innerHTML =
                 card('Long Positions',s.longs.toString(),'Buy positions and win rate.','',`Win: ${fmt(s.longWinRate,1)}%`)+
                 card('Short Positions',s.shorts.toString(),'Sell positions and win rate.','',`Win: ${fmt(s.shortWinRate,1)}%`)+
-                card('Expected Payoff',fmt(s.expectedPayoff),'Average profit per trade.',s.expectedPayoff>=0?'positive':'negative')+
+                card('Expected Payoff',fmtM(s.expectedPayoff),'Average profit per trade.',s.expectedPayoff>=0?'positive':'negative')+
                 card('Total Events',s.events.length.toString(),'All order events including opens/modifies.','');
 
             document.getElementById('adv-cards-1').innerHTML =
@@ -429,9 +1012,16 @@
                 card('LR Correlation',fmt(s.lrCorr),'Equity curve linearity. Target: > 0.9',s.lrCorr>=.9?'positive':s.lrCorr>=.7?'neutral':'negative')+
                 card('Std Deviation',`${fmt(s.stdDev,4)}%`,'Return volatility. Lower = more consistent.','');
 
-            document.getElementById('equity-chart').innerHTML = lineChart(s.equity,s.equity,{title:'Equity & Balance Curve',xLabel:'Trade #',yLabel:'Account Value',l1:'Equity',l2:'Balance'});
+            document.getElementById('equity-chart').innerHTML = equityBalanceVolumeChart(s.equity, s.balance, s.volumes, {title:'Equity & Balance Curve'});
             document.getElementById('dd-chart').innerHTML = lineChart(s.ddCurve,null,{title:'Drawdown %',xLabel:'Trade #',yLabel:'Drawdown %',c1:'#f44336',zero:true});
             document.getElementById('profit-chart').innerHTML = scatterChart(s.closed.map(t=>({x:t.n,y:t.r})),{title:'Profit vs Trade Sequence',xLabel:'Trade #',yLabel:'Profit',w:800,h:200,color:'#4CAF50'});
+            document.getElementById('return-dist').innerHTML = renderReturnDist(s.closed);
+            document.getElementById('exit-analysis').innerHTML = renderExitAnalysis(s.closed);
+            document.getElementById('rolling-perf').innerHTML = renderRollingPerf(s.closed);
+            document.getElementById('streaks-chart').innerHTML = renderStreaks(s.closed);
+            document.getElementById('lot-analysis').innerHTML = renderLotAnalysis(s.closed);
+            document.getElementById('monthly-returns').innerHTML = renderMonthlyReturns(s.closed);
+            document.getElementById('duration-charts').innerHTML = renderDuration(s.closed, s.events);
             document.getElementById('dist-charts').innerHTML = renderDistCharts(s.closed);
             document.getElementById('mfe-mae').innerHTML = renderMfeMae(s.closed);
             document.getElementById('stats-table').innerHTML = renderStats(s);
