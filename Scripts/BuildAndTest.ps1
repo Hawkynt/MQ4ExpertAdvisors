@@ -58,6 +58,8 @@ param(
     [string]$Symbol,
     [string]$Period,
     [int]$Model = -1,
+    [string]$FromDate,  # Backtest start date (overrides config)
+    [string]$ToDate,    # Backtest end date (overrides config)
     [string]$ExpertParams = "",  # Expert parameters (key=value;key2=value2)
     [switch]$NoLaunch = $false,
     [switch]$All = $false,
@@ -241,8 +243,8 @@ $TestExpertName = $config["Test"]["ExpertName"]
 if (-not $Symbol) { $Symbol = $config["Test"]["Symbol"] }
 if (-not $Period) { $Period = $config["Test"]["Period"] }
 if ($Model -eq -1) { $Model = [int]$config["Test"]["Model"] }
-$FromDate = $config["Test"]["FromDate"]
-$ToDate = $config["Test"]["ToDate"]
+if (-not $FromDate) { $FromDate = $config["Test"]["FromDate"] }
+if (-not $ToDate) { $ToDate = $config["Test"]["ToDate"] }
 
 Write-Status "MT4: $MT4Terminal"
 Write-Status "AppData: $AppDataRoot"
