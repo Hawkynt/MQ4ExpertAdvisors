@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MT4 Optimization Report</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #1a1a2e;
+            --bg-card: #16213e;
+            --bg-hover: #1f3460;
+            --text-primary: #eaeaea;
+            --text-secondary: #a0a0a0;
+            --accent-green: #00d26a;
+            --accent-red: #ff4757;
+            --accent-blue: #00aaff;
+            --accent-gold: #ffd700;
+            --accent-purple: #9c27b0;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--bg-card), #1f3460);
+            border-radius: 12px;
+            border: 1px solid #2a3f5f;
+        }
+        .header h1 { color: var(--accent-blue); font-size: 2em; margin-bottom: 10px; }
+        .header .meta { color: var(--text-secondary); font-size: 0.95em; }
+        .header .meta span { margin: 0 15px; }
+
+        .cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: var(--bg-card);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid #2a3f5f;
+        }
+        .card .label { color: var(--text-secondary); font-size: 0.85em; margin-bottom: 5px; }
+        .card .value { font-size: 1.8em; font-weight: bold; }
+        .card .value.profit { color: var(--accent-green); }
+        .card .value.loss { color: var(--accent-red); }
+        .card .value.neutral { color: var(--accent-blue); }
+
+        .section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 1px solid #2a3f5f;
+        }
+        .section h2 {
+            color: var(--accent-blue);
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            border-bottom: 1px solid #2a3f5f;
+            padding-bottom: 10px;
+        }
+
+        .chart-container {
+            width: 100%;
+            min-height: 400px;
+            margin-bottom: 20px;
+        }
+        .chart-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .best-params {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 10px;
+        }
+        .param-item {
+            background: var(--bg-hover);
+            padding: 10px 15px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .param-item .name { color: var(--text-secondary); }
+        .param-item .val { color: var(--accent-gold); font-weight: bold; }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+        .results-table th, .results-table td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #2a3f5f;
+        }
+        .results-table th {
+            background: var(--bg-hover);
+            color: var(--accent-blue);
+            position: sticky;
+            top: 0;
+        }
+        .results-table tr:hover { background: var(--bg-hover); }
+        .results-table .profit { color: var(--accent-green); }
+        .results-table .loss { color: var(--accent-red); }
+
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .controls select, .controls input {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border: 1px solid #2a3f5f;
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+        .controls label { color: var(--text-secondary); margin-right: 5px; }
+
+        .local-extrema {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .extrema-card {
+            background: var(--bg-hover);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--accent-green);
+        }
+        .extrema-card.minima { border-left-color: var(--accent-red); }
+        .extrema-card h4 { color: var(--accent-gold); margin-bottom: 10px; }
+        .extrema-card .params { font-size: 0.85em; color: var(--text-secondary); }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+        .meta-card {
+            background: var(--bg-hover);
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid #2a3f5f;
+        }
+        .meta-card:hover { border-color: #4a5f8f; }
+        .meta-label { color: var(--text-secondary); font-size: 10px; text-transform: uppercase; margin-bottom: 4px; }
+        .meta-value { font-size: 14px; font-weight: bold; color: var(--text-primary); }
+        .meta-sub { font-size: 10px; color: #555; margin-top: 2px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>MT4 Optimization Report</h1>
+    </div>
+
+    <div class="section">
+        <h2>Scenario</h2>
+        <div class="meta-grid" id="scenarioCards"></div>
+    </div>
+
+    <div class="cards-container" id="summaryCards"></div>
+
+    <div class="section">
+        <h2>Best Parameters</h2>
+        <div class="best-params" id="bestParams"></div>
+    </div>
+
+    <div class="section">
+        <h2>Parameter Space Analysis</h2>
+        <div class="controls">
+            <div>
+                <label>X Axis:</label>
+                <select id="xParam" onchange="updateHeatmap()"></select>
+            </div>
+            <div>
+                <label>Y Axis:</label>
+                <select id="yParam" onchange="updateHeatmap()"></select>
+            </div>
+            <div>
+                <label>Metric:</label>
+                <select id="metric" onchange="updateHeatmap()">
+                    <option value="Profit">Profit</option>
+                    <option value="ProfitFactor" selected>Profit Factor</option>
+                    <option value="ExpectedPayoff">Expected Payoff</option>
+                    <option value="DrawdownPercent">Drawdown %</option>
+                </select>
+            </div>
+        </div>
+        <div class="chart-container" id="heatmapChart"></div>
+    </div>
+
+    <div class="section">
+        <h2>3D Parameter Surface</h2>
+        <div class="controls">
+            <div>
+                <label>X Axis:</label>
+                <select id="x3dParam" onchange="update3DSurface()"></select>
+            </div>
+            <div>
+                <label>Y Axis:</label>
+                <select id="y3dParam" onchange="update3DSurface()"></select>
+            </div>
+        </div>
+        <div class="chart-container" id="surface3dChart"></div>
+    </div>
+
+    <div class="section">
+        <h2>Parallel Coordinates</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 15px;">
+            Each line represents a parameter combination. Hover to see details. Filter by dragging on axes.
+        </p>
+        <div class="chart-container" id="parallelChart" style="min-height: 500px;"></div>
+    </div>
+
+    <div class="section">
+        <h2>Local Optima Detection</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 15px;">
+            Clusters of high-performing parameter regions (potential robust configurations).
+        </p>
+        <div class="local-extrema" id="localOptima"></div>
+    </div>
+
+    <div class="section">
+        <h2>Parameter Distribution</h2>
+        <div class="chart-row" id="distributionCharts"></div>
+    </div>
+
+    <div class="section">
+        <h2>All Results</h2>
+        <div class="controls">
+            <div>
+                <label>Min Trades:</label>
+                <input type="number" id="minTrades" value="10" min="0" onchange="filterResults()">
+            </div>
+            <div>
+                <label>Min Profit Factor:</label>
+                <input type="number" id="minPF" value="0" min="0" step="0.1" onchange="filterResults()">
+            </div>
+        </div>
+        <div class="table-container">
+            <table class="results-table" id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Pass</th>
+                        <th>Profit</th>
+                        <th>Trades</th>
+                        <th>PF</th>
+                        <th>Payoff</th>
+                        <th>DD%</th>
+                        <th>Parameters</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Data placeholder - will be replaced by PowerShell
+        const REPORT_DATA = /*{{REPORT_DATA}}*/{};
+
+        let allResults = [];
+        let paramNames = [];
+
+        function init() {
+            if (!REPORT_DATA.results || REPORT_DATA.results.length === 0) {
+                document.body.innerHTML = '<div style="text-align:center;padding:50px;color:#ff4757;">No optimization results found</div>';
+                return;
+            }
+
+            allResults = REPORT_DATA.results;
+
+            // Extract parameter names from first result (sorted alphabetically)
+            if (allResults[0].params) {
+                paramNames = Object.keys(allResults[0].params).sort((a, b) => a.localeCompare(b));
+            }
+
+            renderScenario();
+            renderSummaryCards();
+            renderBestParams();
+            populateParamSelects();
+            updateHeatmap();
+            update3DSurface();
+            renderParallelCoordinates();
+            detectLocalOptima();
+            renderDistributions();
+            filterResults();
+        }
+
+        function renderScenario() {
+            const meta = REPORT_DATA.meta || {};
+            const modelNames = { 0: 'Every Tick', 1: 'Control Points', 2: 'Open Prices' };
+            const criterionNames = { 0: 'Balance', 1: 'Profit Factor', 2: 'Expected Payoff', 3: 'Max DD', 4: 'DD %', 5: 'Custom' };
+
+            const cards = [
+                { label: 'Expert Advisor', value: meta.expert || 'Unknown' },
+                { label: 'Symbol', value: meta.symbol || 'Unknown' },
+                { label: 'Period', value: meta.period || 'Unknown' },
+                { label: 'Date Range', value: `${meta.fromDate || '?'} - ${meta.toDate || '?'}` },
+                { label: 'Model', value: modelNames[meta.model] || `Model ${meta.model}` },
+                { label: 'Criterion', value: meta.criterion || criterionNames[meta.criterionId] || 'Unknown' },
+                { label: 'Mode', value: meta.genetic ? 'Genetic Algorithm' : 'Full Scan' },
+                { label: 'Total Passes', value: allResults.length.toLocaleString() },
+                { label: 'Duration', value: meta.duration ? `${meta.duration} min` : 'Unknown' }
+            ];
+
+            document.getElementById('scenarioCards').innerHTML = cards
+                .map(c => `<div class="meta-card"><div class="meta-label">${c.label}</div><div class="meta-value">${c.value}</div></div>`)
+                .join('');
+        }
+
+        function renderSummaryCards() {
+            const best = allResults[0];
+            const profitable = allResults.filter(r => r.Profit > 0).length;
+            const avgPF = allResults.reduce((s, r) => s + (r.ProfitFactor || 0), 0) / allResults.length;
+            const avgDD = allResults.reduce((s, r) => s + (r.DrawdownPercent || 0), 0) / allResults.length;
+
+            document.getElementById('summaryCards').innerHTML = `
+                <div class="card"><div class="label">Best Profit</div><div class="value ${best.Profit >= 0 ? 'profit' : 'loss'}">$${best.Profit.toFixed(2)}</div></div>
+                <div class="card"><div class="label">Best Profit Factor</div><div class="value profit">${best.ProfitFactor.toFixed(2)}</div></div>
+                <div class="card"><div class="label">Total Passes</div><div class="value neutral">${allResults.length}</div></div>
+                <div class="card"><div class="label">Profitable Passes</div><div class="value profit">${profitable} (${(profitable/allResults.length*100).toFixed(1)}%)</div></div>
+                <div class="card"><div class="label">Avg Profit Factor</div><div class="value neutral">${avgPF.toFixed(2)}</div></div>
+                <div class="card"><div class="label">Avg Drawdown</div><div class="value loss">${avgDD.toFixed(2)}%</div></div>
+            `;
+        }
+
+        function renderBestParams() {
+            const best = allResults[0];
+            if (!best.params) return;
+
+            document.getElementById('bestParams').innerHTML = Object.entries(best.params)
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([name, val]) => `<div class="param-item"><span class="name">${name}</span><span class="val">${val}</span></div>`)
+                .join('');
+        }
+
+        function populateParamSelects() {
+            const selects = ['xParam', 'yParam', 'x3dParam', 'y3dParam'];
+            const options = paramNames.map(p => `<option value="${p}">${p}</option>`).join('');
+
+            selects.forEach((id, i) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.innerHTML = options;
+                    if (paramNames.length > 1) el.selectedIndex = i % 2;
+                }
+            });
+        }
+
+        function updateHeatmap() {
+            const xParam = document.getElementById('xParam').value;
+            const yParam = document.getElementById('yParam').value;
+            const metric = document.getElementById('metric').value;
+
+            if (!xParam || !yParam || xParam === yParam) return;
+
+            // Group results by x,y combinations and average the metric
+            const grid = {};
+            allResults.forEach(r => {
+                if (!r.params) return;
+                const x = r.params[xParam];
+                const y = r.params[yParam];
+                const key = `${x},${y}`;
+                if (!grid[key]) grid[key] = { x, y, values: [] };
+                grid[key].values.push(r[metric] || 0);
+            });
+
+            // Get unique x and y values
+            const xVals = [...new Set(Object.values(grid).map(g => parseFloat(g.x)))].sort((a,b) => a-b);
+            const yVals = [...new Set(Object.values(grid).map(g => parseFloat(g.y)))].sort((a,b) => a-b);
+
+            // Build z matrix
+            const z = yVals.map(y =>
+                xVals.map(x => {
+                    const cell = grid[`${x},${y}`];
+                    if (!cell) return null;
+                    return cell.values.reduce((a,b) => a+b, 0) / cell.values.length;
+                })
+            );
+
+            const trace = {
+                x: xVals,
+                y: yVals,
+                z: z,
+                type: 'heatmap',
+                colorscale: metric === 'DrawdownPercent' ? 'RdYlGn' : 'RdYlGn',
+                reversescale: metric === 'DrawdownPercent',
+                colorbar: { title: metric }
+            };
+
+            const layout = {
+                title: `${metric} by ${xParam} vs ${yParam}`,
+                xaxis: { title: xParam },
+                yaxis: { title: yParam },
+                paper_bgcolor: '#16213e',
+                plot_bgcolor: '#16213e',
+                font: { color: '#eaeaea' }
+            };
+
+            Plotly.newPlot('heatmapChart', [trace], layout, {responsive: true});
+        }
+
+        function update3DSurface() {
+            const xParam = document.getElementById('x3dParam').value;
+            const yParam = document.getElementById('y3dParam').value;
+
+            if (!xParam || !yParam || xParam === yParam) return;
+
+            // Group results by x,y and average profit
+            const grid = {};
+            allResults.forEach(r => {
+                if (!r.params) return;
+                const x = r.params[xParam];
+                const y = r.params[yParam];
+                const key = `${x},${y}`;
+                if (!grid[key]) grid[key] = { x, y, values: [] };
+                grid[key].values.push(r.Profit || 0);
+            });
+
+            const xVals = [...new Set(Object.values(grid).map(g => parseFloat(g.x)))].sort((a,b) => a-b);
+            const yVals = [...new Set(Object.values(grid).map(g => parseFloat(g.y)))].sort((a,b) => a-b);
+
+            const z = yVals.map(y =>
+                xVals.map(x => {
+                    const cell = grid[`${x},${y}`];
+                    if (!cell) return 0;
+                    return cell.values.reduce((a,b) => a+b, 0) / cell.values.length;
+                })
+            );
+
+            const trace = {
+                x: xVals,
+                y: yVals,
+                z: z,
+                type: 'surface',
+                colorscale: 'RdYlGn',
+                colorbar: { title: 'Profit' }
+            };
+
+            const layout = {
+                title: `Profit Surface: ${xParam} vs ${yParam}`,
+                scene: {
+                    xaxis: { title: xParam },
+                    yaxis: { title: yParam },
+                    zaxis: { title: 'Profit' },
+                    bgcolor: '#16213e'
+                },
+                paper_bgcolor: '#16213e',
+                font: { color: '#eaeaea' }
+            };
+
+            Plotly.newPlot('surface3dChart', [trace], layout, {responsive: true});
+        }
+
+        function renderParallelCoordinates() {
+            if (paramNames.length === 0) return;
+
+            const dimensions = paramNames.slice(0, 8).map(p => ({
+                label: p,
+                values: allResults.map(r => r.params ? parseFloat(r.params[p]) || 0 : 0)
+            }));
+
+            // Add profit as final dimension
+            dimensions.push({
+                label: 'Profit',
+                values: allResults.map(r => r.Profit || 0)
+            });
+
+            const trace = {
+                type: 'parcoords',
+                line: {
+                    color: allResults.map(r => r.Profit || 0),
+                    colorscale: 'RdYlGn',
+                    showscale: true,
+                    colorbar: { title: 'Profit' }
+                },
+                dimensions: dimensions
+            };
+
+            const layout = {
+                paper_bgcolor: '#16213e',
+                font: { color: '#eaeaea', size: 10 }
+            };
+
+            Plotly.newPlot('parallelChart', [trace], layout, {responsive: true});
+        }
+
+        function detectLocalOptima() {
+            // Simple clustering: group by similar profit levels and find distinct parameter regions
+            const profitable = allResults.filter(r => r.Profit > 0 && r.TotalTrades >= 10);
+            if (profitable.length === 0) {
+                document.getElementById('localOptima').innerHTML = '<div style="color:var(--text-secondary)">No profitable results found</div>';
+                return;
+            }
+
+            // Sort by profit and take top performers
+            const top = profitable.sort((a,b) => b.Profit - a.Profit).slice(0, 20);
+
+            // Simple clustering by first parameter
+            const clusters = {};
+            top.forEach(r => {
+                if (!r.params) return;
+                const firstParam = Object.keys(r.params)[0];
+                const key = `${firstParam}=${r.params[firstParam]}`;
+                if (!clusters[key]) clusters[key] = [];
+                clusters[key].push(r);
+            });
+
+            // Get best from each cluster
+            const optima = Object.entries(clusters)
+                .map(([key, results]) => {
+                    const best = results.sort((a,b) => b.Profit - a.Profit)[0];
+                    return { key, result: best, count: results.length };
+                })
+                .sort((a,b) => b.result.Profit - a.result.Profit)
+                .slice(0, 6);
+
+            document.getElementById('localOptima').innerHTML = optima.map((o, i) => `
+                <div class="extrema-card">
+                    <h4>Region ${i+1}: $${o.result.Profit.toFixed(2)}</h4>
+                    <div>Profit Factor: ${o.result.ProfitFactor.toFixed(2)} | Trades: ${o.result.TotalTrades}</div>
+                    <div class="params">${o.result.Inputs || Object.entries(o.result.params || {}).sort((a, b) => a[0].localeCompare(b[0])).map(([k,v]) => `${k}=${v}`).join('; ')}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderDistributions() {
+            const container = document.getElementById('distributionCharts');
+            if (paramNames.length === 0) return;
+
+            // Show distributions for first 4 parameters
+            const paramsToShow = paramNames.slice(0, 4);
+            container.innerHTML = paramsToShow.map(p => `<div id="dist_${p}" style="min-height:250px;"></div>`).join('');
+
+            paramsToShow.forEach(param => {
+                const values = allResults.map(r => r.params ? parseFloat(r.params[param]) || 0 : 0);
+                const profits = allResults.map(r => r.Profit || 0);
+
+                const trace = {
+                    x: values,
+                    y: profits,
+                    mode: 'markers',
+                    type: 'scatter',
+                    marker: {
+                        color: profits,
+                        colorscale: 'RdYlGn',
+                        size: 6,
+                        opacity: 0.6
+                    }
+                };
+
+                const layout = {
+                    title: param,
+                    xaxis: { title: param },
+                    yaxis: { title: 'Profit' },
+                    paper_bgcolor: '#16213e',
+                    plot_bgcolor: '#16213e',
+                    font: { color: '#eaeaea', size: 10 },
+                    margin: { t: 40, b: 40, l: 50, r: 20 }
+                };
+
+                Plotly.newPlot(`dist_${param}`, [trace], layout, {responsive: true});
+            });
+        }
+
+        function filterResults() {
+            const minTrades = parseInt(document.getElementById('minTrades').value) || 0;
+            const minPF = parseFloat(document.getElementById('minPF').value) || 0;
+
+            const filtered = allResults.filter(r =>
+                (r.TotalTrades || 0) >= minTrades &&
+                (r.ProfitFactor || 0) >= minPF
+            );
+
+            const tbody = document.querySelector('#resultsTable tbody');
+            tbody.innerHTML = filtered.slice(0, 100).map((r, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${r.Pass || i}</td>
+                    <td class="${r.Profit >= 0 ? 'profit' : 'loss'}">$${(r.Profit || 0).toFixed(2)}</td>
+                    <td>${r.TotalTrades || 0}</td>
+                    <td>${(r.ProfitFactor || 0).toFixed(2)}</td>
+                    <td>${(r.ExpectedPayoff || 0).toFixed(2)}</td>
+                    <td class="loss">${(r.DrawdownPercent || 0).toFixed(2)}%</td>
+                    <td style="font-size:0.8em;color:var(--text-secondary)">${r.Inputs || Object.entries(r.params || {}).sort((a, b) => a[0].localeCompare(b[0])).slice(0,5).map(([k,v]) => `${k}=${v}`).join('; ')}...</td>
+                </tr>
+            `).join('');
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
