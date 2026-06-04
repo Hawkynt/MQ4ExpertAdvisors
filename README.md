@@ -1,15 +1,17 @@
 # 🚀 Advanced MT4 Expert Advisor Framework
 
-[![License](https://img.shields.io/badge/License-LGPL_3.0-blue)](https://licenses.nuget.org/LGPL-3.0-or-later)
-![Language](https://img.shields.io/github/languages/top/Hawkynt/MQ4ExpertAdvisors?color=purple)
-[![MQL4](https://img.shields.io/badge/MQL4-Expert_Advisor-orange.svg)](https://docs.mql4.com/)
-[![MetaTrader](https://img.shields.io/badge/MetaTrader-4-blue.svg)](https://www.metatrader4.com/)
-[![Last Commit](https://img.shields.io/github/last-commit/Hawkynt/MQ4ExpertAdvisors?branch=master) ![Activity](https://img.shields.io/github/commit-activity/y/Hawkynt/MQ4ExpertAdvisors?branch=master)](https://github.com/Hawkynt/MQ4ExpertAdvisors/commits/master)
-![Size](https://img.shields.io/github/languages/code-size/Hawkynt/MQ4ExpertAdvisors?color=green) /
-![Repo-Size](https://img.shields.io/github/repo-size/Hawkynt/MQ4ExpertAdvisors?color=red)
-[![Stars](https://img.shields.io/github/stars/Hawkynt/MQ4ExpertAdvisors?color=yellow)](https://github.com/Hawkynt/MQ4ExpertAdvisors/stargazers)
-[![Forks](https://img.shields.io/github/forks/Hawkynt/MQ4ExpertAdvisors?color=teal)](https://github.com/Hawkynt/MQ4ExpertAdvisors/network/members)
+[![License](https://img.shields.io/github/license/Hawkynt/MQ4ExpertAdvisors)](https://github.com/Hawkynt/MQ4ExpertAdvisors/blob/main/LICENSE)
+[![Language](https://img.shields.io/github/languages/top/Hawkynt/MQ4ExpertAdvisors?color=8957D5)](https://github.com/Hawkynt/MQ4ExpertAdvisors)
+[![MetaTrader 4](https://img.shields.io/badge/MetaTrader_4-informational)](https://www.metatrader4.com/)
+
+![Last Commit](https://img.shields.io/github/last-commit/Hawkynt/MQ4ExpertAdvisors?branch=main)
+![Activity](https://img.shields.io/github/commit-activity/m/Hawkynt/MQ4ExpertAdvisors)
+
+[![Stars](https://img.shields.io/github/stars/Hawkynt/MQ4ExpertAdvisors?color=FFD700)](https://github.com/Hawkynt/MQ4ExpertAdvisors/stargazers)
+[![Forks](https://img.shields.io/github/forks/Hawkynt/MQ4ExpertAdvisors?color=008080)](https://github.com/Hawkynt/MQ4ExpertAdvisors/network/members)
 [![Issues](https://img.shields.io/github/issues/Hawkynt/MQ4ExpertAdvisors)](https://github.com/Hawkynt/MQ4ExpertAdvisors/issues)
+![Code Size](https://img.shields.io/github/languages/code-size/Hawkynt/MQ4ExpertAdvisors?color=4CAF50)
+![Repo Size](https://img.shields.io/github/repo-size/Hawkynt/MQ4ExpertAdvisors?color=FF9800)
 
 > **A sophisticated, modular trading system for MetaTrader 4 that combines advanced order management strategies with intelligent market analysis.**
 
