@@ -337,23 +337,9 @@ Using this EA in a commercial trading environment? Consider purchasing a commerc
 - Always test thoroughly in demo accounts first
 - Consider seeking advice from qualified financial advisors
 
-## 📄 License
-
-This project is licensed under the LGPLv3 License - see the [LICENSE](LICENSE) file for details.
-
 ## 🤝 Contributing
 
 Contributions are welcome! Please read our contributing guidelines and submit pull requests for any improvements.
-
----
-
-<div align="center">
-
-**Made with ❤️ for the trading community**
-
-*Remember: The best strategy is the one you understand and can stick to consistently!*
-
-</div>
 
 ## ❤️ Support
 
