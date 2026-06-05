@@ -4,6 +4,7 @@
 [![Language](https://img.shields.io/github/languages/top/Hawkynt/MQ4ExpertAdvisors?color=8957D5)](https://github.com/Hawkynt/MQ4ExpertAdvisors)
 [![MetaTrader 4](https://img.shields.io/badge/MetaTrader_4-informational)](https://www.metatrader4.com/)
 
+[![CI](https://github.com/Hawkynt/MQ4ExpertAdvisors/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Hawkynt/MQ4ExpertAdvisors/actions/workflows/ci.yml)
 ![Last Commit](https://img.shields.io/github/last-commit/Hawkynt/MQ4ExpertAdvisors?branch=main)
 ![Activity](https://img.shields.io/github/commit-activity/m/Hawkynt/MQ4ExpertAdvisors)
 
@@ -13,7 +14,7 @@
 ![Code Size](https://img.shields.io/github/languages/code-size/Hawkynt/MQ4ExpertAdvisors?color=4CAF50)
 ![Repo Size](https://img.shields.io/github/repo-size/Hawkynt/MQ4ExpertAdvisors?color=FF9800)
 
-> **A sophisticated, modular trading system for MetaTrader 4 that combines advanced order management strategies with intelligent market analysis.**
+> A modular trading system for MetaTrader 4 that combines advanced order-management strategies (trailing stops, grid recovery, partial closes) with indicator-driven market analysis — built so each expert advisor, indicator and library can be used and tested on its own.
 
 ## ✨ Features
 
@@ -58,7 +59,7 @@
 - **Memory Management** - Automatic cleanup and resource optimization
 - **Symbol & Magic Number Filtering** - Multi-pair, multi-strategy support
 
-## 🚀 Quick Start
+## 📦 Quick Start
 
 ### Prerequisites
 
@@ -353,3 +354,14 @@ Contributions are welcome! Please read our contributing guidelines and submit pu
 *Remember: The best strategy is the one you understand and can stick to consistently!*
 
 </div>
+
+## ❤️ Support
+
+If this project saves you time or money, consider supporting its development:
+
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors)](https://github.com/sponsors/Hawkynt)
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?logo=paypal)](https://www.paypal.me/hawkynt)
+
+## 📜 License
+
+Licensed under LGPL-3.0-or-later — see [LICENSE](LICENSE).
