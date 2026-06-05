@@ -293,20 +293,7 @@ MQ4ExpertAdvisors/
 └── README.md                     # This file
 ```
 
-## 💝 Support This Project
-
-### 🎯 If This EA Makes You Money
-
-**Found success with this Expert Advisor?** Consider sharing the wealth!
-
-- **Profit Sharing**: If you're making consistent profits, consider donating 5-10% of your monthly gains
-- **One-Time Donation**: Any amount helps fund continued development
-
-### 💳 Donation Methods
-
-- **GitHub**: Just click the "Sponsor" button at the top of this page
-
-### 🤝 Other Ways to Support
+## 🤝 Contributing
 
 - ⭐ **Star this repository** if you find it useful
 - 🐛 **Report bugs** and suggest improvements
@@ -337,13 +324,9 @@ Using this EA in a commercial trading environment? Consider purchasing a commerc
 - Always test thoroughly in demo accounts first
 - Consider seeking advice from qualified financial advisors
 
-## 🤝 Contributing
-
-Contributions are welcome! Please read our contributing guidelines and submit pull requests for any improvements.
-
 ## ❤️ Support
 
-If this project saves you time or money, consider supporting its development:
+If this project saves you time or money, consider supporting its development — if this EA earns for you, sharing a slice of a profitable month funds the next feature:
 
 [![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors)](https://github.com/sponsors/Hawkynt)
 [![PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?logo=paypal)](https://www.paypal.me/hawkynt)
