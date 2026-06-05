@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_call: {}
+
+# The MetaEditor compiler is Windows-GUI-only, so CI cannot compile MQL. The
+# minimum-viable check instead verifies every source structurally: balanced
+# braces/parens/brackets with string- and comment-aware tokenisation.
+
+# Force JavaScript-based actions to run on Node 24 instead of the deprecated
+# Node 20 ahead of the 2026-06-16 hard cutover.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Structural syntax check (all MQL sources)
+        run: node .github/workflows/scripts/check-mql.mjs .
