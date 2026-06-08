@@ -14,6 +14,10 @@
 ![Code Size](https://img.shields.io/github/languages/code-size/Hawkynt/MQ4ExpertAdvisors?color=4CAF50)
 ![Repo Size](https://img.shields.io/github/repo-size/Hawkynt/MQ4ExpertAdvisors?color=FF9800)
 
+[![Release](https://img.shields.io/github/v/release/Hawkynt/MQ4ExpertAdvisors)](https://github.com/Hawkynt/MQ4ExpertAdvisors/releases/latest)
+[![Nightly](https://img.shields.io/github/v/release/Hawkynt/MQ4ExpertAdvisors?include_prereleases&sort=date&filter=nightly-*&label=nightly&color=FF9800)](https://github.com/Hawkynt/MQ4ExpertAdvisors/releases)
+[![Downloads](https://img.shields.io/github/downloads/Hawkynt/MQ4ExpertAdvisors/total)](https://github.com/Hawkynt/MQ4ExpertAdvisors/releases)
+
 > A modular trading system for MetaTrader 4 that combines advanced order-management strategies (trailing stops, grid recovery, partial closes) with indicator-driven market analysis — built so each expert advisor, indicator and library can be used and tested on its own.
 
 ## ✨ Features

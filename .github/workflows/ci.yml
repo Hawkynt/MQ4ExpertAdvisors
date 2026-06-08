@@ -7,12 +7,9 @@ on:
     branches: [main]
   workflow_call: {}
 
-# The MetaEditor compiler is Windows-GUI-only, so CI cannot compile MQL. The
-# minimum-viable check instead verifies every source structurally: balanced
-# braces/parens/brackets with string- and comment-aware tokenisation.
-
-# Force JavaScript-based actions to run on Node 24 instead of the deprecated
-# Node 20 ahead of the 2026-06-16 hard cutover.
+# The required gate has two parts: a fast structural syntax check on ubuntu, and
+# a real compile on windows — MetaTrader 4's installer is publicly downloadable,
+# so CI installs MetaEditor silently and compiles every .mq4 for real.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
@@ -26,3 +23,22 @@ jobs:
           node-version: '22'
       - name: Structural syntax check (all MQL sources)
         run: node .github/workflows/scripts/check-mql.mjs .
+
+  compile:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MetaEditor + compile every MQL source
+        shell: pwsh
+        run: .github/workflows/scripts/compile-mql.ps1
+      - name: Upload compiled binaries + log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mql-binaries
+          path: |
+            **/*.ex4
+            **/*.ex5
+            compile.log
+          if-no-files-found: ignore

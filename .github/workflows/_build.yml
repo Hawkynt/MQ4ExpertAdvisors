@@ -1,0 +1,45 @@
+name: Build artifacts
+
+# Shared build block. Called by release.yml (manual dispatch) and nightly.yml
+# (auto, on CI success). Installs MetaEditor, compiles every source, and bundles
+# the resulting .ex4 binaries into one archive so release and nightly never diverge.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref/SHA to build (defaults to caller ref)
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+      - name: Install MetaEditor + compile
+        shell: pwsh
+        run: .github/workflows/scripts/compile-mql.ps1
+      - name: Package compiled binaries
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $ex = Get-ChildItem -Recurse -Include *.ex4,*.ex5
+          if ($ex.Count -eq 0) { Write-Error "nothing to package"; exit 1 }
+          Compress-Archive -Path $ex.FullName -DestinationPath dist/MQ4ExpertAdvisors.zip -Force
+          Get-ChildItem dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-artifacts
+          path: dist/*
+          if-no-files-found: error

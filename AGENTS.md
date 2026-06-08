@@ -10,7 +10,7 @@ per-repo distillation.
 **MQL4** trading code for MetaTrader 4: expert advisors (`Experts/`),
 indicators (`Indicators/`), shared libraries (`Libraries/`), utility scripts
 (`Scripts/`). The MetaEditor compiler is Windows-GUI-only, so CI runs a
-structural syntax check (`check-mql.mjs`) instead of a compile — real
+structural syntax check (`check-mql.mjs`) plus a real compile — CI installs MetaEditor from the public MT4 setup and builds every source — real
 compilation and backtesting happen in MetaTrader.
 
 ## Commits
@@ -26,13 +26,21 @@ compilation and backtesting happen in MetaTrader.
 ## The loop (always, in this order)
 
 1. **Before committing**: run the structural check locally —
-   `node .github/workflows/scripts/check-mql.mjs .` (exactly what CI runs) —
-   and compile touched files in MetaEditor where available; strategy changes
-   get a Strategy-Tester backtest before they're called done. Update the
-   README's configuration/feature tables when inputs change.
+   `node .github/workflows/scripts/check-mql.mjs .` — and compile touched files
+   in MetaEditor (CI also installs MetaEditor and compiles everything for real);
+   strategy changes get a Strategy-Tester backtest before they're called done.
+   Update the README's configuration/feature tables when inputs change.
 2. **Commit** (rules above) and **push**.
-3. **Wait for CI** and fix until green. A pushed change isn't done while the
-   workflow it triggered is red.
+3. **Wait for CI** (structural check on ubuntu + real MetaEditor compile on
+   windows) and fix until green.
+4. **Wait for the nightly**: on `main`, a green CI triggers `nightly.yml`, which
+   recompiles and bundles the `.ex4` binaries into `MQ4ExpertAdvisors.zip` and
+   publishes a `nightly-yyyyMMdd` prerelease (GFS-pruned). Fix and loop until
+   green.
+
+Stable releases are **manual** (`gh workflow run release.yml`) — they publish
+the same `.ex4` archive under a dated `vyyyyMMdd` tag. `CHANGELOG.md` is
+generated — never edit it by hand.
 
 ## Code conventions
 
