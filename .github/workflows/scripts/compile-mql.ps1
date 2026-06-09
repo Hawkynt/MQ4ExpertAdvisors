@@ -20,13 +20,78 @@ function Find-MetaEditor {
   return $null
 }
 
+# Downloads the MetaTrader 4 installer with retry/backoff across mirrors.
+# The MetaQuotes CDN intermittently resets the connection ("An existing
+# connection was forcibly closed by the remote host") for runner IPs, so a
+# single Invoke-WebRequest is unreliable. curl.exe (bundled on windows-latest)
+# tolerates these resets far better; Invoke-WebRequest is the fallback. We try
+# several mirrors and validate that the result is a real PE executable of a
+# plausible size before trusting it.
+function Get-MetaTraderInstaller {
+  param([string]$Out)
+  # TLS 1.2/1.3 — the CDN rejects older suites, which surfaces as a reset.
+  try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13 }
+  catch { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 }
+
+  $mirrors = @(
+    'https://download.mql5.com/cdn/web/metaquotes.software.corp/mt4/mt4setup.exe',
+    'https://download.mql5.com/cdn/web/8472/mt4/icmarkets4setup.exe',
+    'https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe'
+  )
+  $curl = (Get-Command curl.exe -ErrorAction SilentlyContinue).Source
+  $maxAttempts = 5
+  foreach ($url in $mirrors) {
+    for ($i = 1; $i -le $maxAttempts; $i++) {
+      if (Test-Path $Out) { Remove-Item $Out -Force -ErrorAction SilentlyContinue }
+      Write-Host "download $url (attempt $i/$maxAttempts)..."
+      try {
+        if ($curl) {
+          # --retry handles transient resets; -f fails on HTTP errors so we
+          # never mistake an error page for an installer.
+          & $curl -fSL --retry 3 --retry-all-errors --retry-delay 5 `
+                  --connect-timeout 30 --max-time 600 `
+                  -A 'Mozilla/5.0' -o $Out $url
+          if ($LASTEXITCODE -ne 0) { throw "curl exited $LASTEXITCODE" }
+        } else {
+          Invoke-WebRequest -Uri $url -OutFile $Out -UseBasicParsing -TimeoutSec 600 -UserAgent 'Mozilla/5.0'
+        }
+      } catch {
+        Write-Host "  attempt failed: $($_.Exception.Message)"
+      }
+      # Validate: must exist, be >= 1 MB, and start with the 'MZ' PE marker.
+      if (Test-Path $Out) {
+        $len = (Get-Item $Out).Length
+        $sig = [System.Text.Encoding]::ASCII.GetString((Get-Content $Out -TotalCount 2 -AsByteStream -ErrorAction SilentlyContinue))
+        if ($len -ge 1MB -and $sig -eq 'MZ') {
+          Write-Host "  downloaded $([math]::Round($len/1MB,1)) MB from $url"
+          return $true
+        }
+        Write-Host "  rejected: size=$len bytes, sig='$sig' (not a valid PE)"
+      }
+      Start-Sleep -Seconds ([Math]::Min(60, 5 * [Math]::Pow(2, $i - 1)))   # exponential backoff
+    }
+  }
+  return $false
+}
+
 $editor = Find-MetaEditor
 if (-not $editor) {
   Write-Host "Downloading MetaTrader 4 setup..."
-  $url = 'https://download.mql5.com/cdn/web/metaquotes.software.corp/mt4/mt4setup.exe'
-  for ($i = 1; $i -le 3 -and -not (Test-Path mt4setup.exe); $i++) {
-    try { Invoke-WebRequest -Uri $url -OutFile mt4setup.exe -UseBasicParsing -TimeoutSec 120 }
-    catch { Write-Host "download attempt $i failed: $_"; Start-Sleep 10 }
+  if (-not (Get-MetaTraderInstaller -Out 'mt4setup.exe')) {
+    Write-Error @"
+Failed to download the MetaTrader installer after exhausting every mirror.
+The MetaQuotes CDN repeatedly reset the connection from the runner.
+
+Tried (in order):
+  https://download.mql5.com/cdn/web/metaquotes.software.corp/mt4/mt4setup.exe
+  https://download.mql5.com/cdn/web/8472/mt4/icmarkets4setup.exe
+  https://download.mql5.com/cdn/web/metaquotes.software.corp/mt5/mt5setup.exe
+
+If MetaQuotes has blocked the runner IP range for good, supply a stable
+installer URL (or cache the installer as a workflow artifact / release asset)
+and set it as the first entry in `$mirrors` above.
+"@
+    exit 1
   }
   Write-Host "Installing silently (/auto)..."
   Start-Process -FilePath .\mt4setup.exe -ArgumentList '/auto' -PassThru | Out-Null
