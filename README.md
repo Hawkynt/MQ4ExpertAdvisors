@@ -20,6 +20,16 @@
 
 > A modular trading system for MetaTrader 4 that combines advanced order-management strategies (trailing stops, grid recovery, partial closes) with indicator-driven market analysis — built so each expert advisor, indicator and library can be used and tested on its own.
 
+## 🧭 Vision
+
+MQL4 encourages a particular kind of program: one file, global state, strategy and plumbing tangled
+together, and no way to test any of it except by running it on a chart. This framework separates the
+strategy from everything around it — signals, risk, execution and logging as parts you can replace —
+so an expert advisor is written as a strategy rather than as a script that happens to trade.
+
+The tooling exists for the same reason: building and back-testing from the command line means a
+change can be evaluated before it is trusted with an account.
+
 ## ✨ Features
 
 ### 🎯 **Intelligent Order Management**
@@ -63,7 +73,13 @@
 - **Memory Management** - Automatic cleanup and resource optimization
 - **Symbol & Magic Number Filtering** - Multi-pair, multi-strategy support
 
-## 📦 Quick Start
+## 📦 Installation
+
+Copy the compiled `.ex4` files into your terminal's `MQL4/Experts` folder, or point the build script
+at the terminal and let it deploy — see [Build & test tools](#-build--test-tools). MetaTrader 4 is
+required; the build tools also run under Wine.
+
+## 🚀 Quick start
 
 ### Prerequisites
 
@@ -122,7 +138,7 @@ _managers.Add(new OrderManagers__LinearTrailingStop(15, 5, 10, Symbol()));
 _managers.Add(new OrderManagers__Pyramid(20, 1.0, indicator, Symbol()));
 ```
 
-## 🔧 Build & Test Tools
+## 🔧 Build & test tools
 
 The `Scripts/` folder contains PowerShell tools for automated building, testing, and report analysis.
 
@@ -231,7 +247,7 @@ ToDate=2025.12.31
 | `FromDate`    | Backtest start date                                            |
 | `ToDate`      | Backtest end date                                              |
 
-## 📈 Performance & Results
+## 📈 Performance & results
 
 ### Backtesting Recommendations
 
@@ -247,7 +263,7 @@ ToDate=2025.12.31
 - **Regular Monitoring**: Review performance weekly
 - **Stop Loss**: Always use appropriate stop losses
 
-## 🛠️ Development
+## 🧰 Development
 
 ### Adding New Strategies
 
@@ -272,7 +288,7 @@ class MyMoneyManager : public IMoneyManager {
 };
 ```
 
-## 📊 Architecture Overview
+## 🏗️ Architecture
 
 ```
 MQ4ExpertAdvisors/
@@ -297,6 +313,27 @@ MQ4ExpertAdvisors/
 └── README.md                     # This file
 ```
 
+## ⚠️ Limitations
+
+**TRADING INVOLVES SUBSTANTIAL RISK OF LOSS**
+
+- Past performance is not indicative of future results
+- Only trade with money you can afford to lose
+- This software is provided "as-is" without warranty
+- The author is not responsible for any trading losses
+- Always test thoroughly in demo accounts first
+- Consider seeking advice from qualified financial advisors
+
+## 🛠️ Building
+
+```bash
+# Build every .mq4 in Experts/
+./build.sh
+
+# Back-test one EA with the default settings
+./test.sh AdaptiveTrader
+```
+
 ## 🤝 Contributing
 
 - ⭐ **Star this repository** if you find it useful
@@ -317,20 +354,9 @@ Using this EA in a commercial trading environment? Consider purchasing a commerc
 
 ---
 
-## ⚠️ Disclaimer
-
-**TRADING INVOLVES SUBSTANTIAL RISK OF LOSS**
-
-- Past performance is not indicative of future results
-- Only trade with money you can afford to lose
-- This software is provided "as-is" without warranty
-- The author is not responsible for any trading losses
-- Always test thoroughly in demo accounts first
-- Consider seeking advice from qualified financial advisors
-
 ## ❤️ Support
 
-If this project saves you time or money, consider supporting its development — if this EA earns for you, sharing a slice of a profitable month funds the next feature:
+If this project saves you time or money, consider supporting its development:
 
 [![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors)](https://github.com/sponsors/Hawkynt)
 [![PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?logo=paypal)](https://www.paypal.me/hawkynt)
